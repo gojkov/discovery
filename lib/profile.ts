@@ -1,27 +1,19 @@
-import {
-  negativeTasteRules,
-  positiveTasteRules,
-  type TasteRule
-} from "@/taste-rules";
-import type { TrackKnowledge } from "@/lib/types";
-import { matchesRule, normalize, parseTags } from "@/lib/scoring/text";
+import type { ReasonSignal } from "@/lib/reasons";
 
-type ProfileTrack = Omit<TrackKnowledge, "tags"> & {
-  tags?: string[] | string;
+type ProfileTrack = {
+  artist: string;
+  rating: number;
+  reasons?: ReasonSignal[];
 };
-
-function ruleCount(tracks: ProfileTrack[], rule: TasteRule, ratings: number[]) {
-  return tracks.filter((track) => {
-    if (!ratings.includes(track.rating)) return false;
-    const text = normalize([track.notes ?? "", ...parseTags(track.tags)].join(" "));
-    return matchesRule(text, rule);
-  }).length;
-}
 
 export function buildTasteProfile(tracks: ProfileTrack[]) {
   const artistMap = new Map<
     string,
     { artist: string; tens: number; eights: number; skips: number }
+  >();
+  const reasonMap = new Map<
+    string,
+    { phrase: string; polarity: string; weight: number; count: number }
   >();
 
   for (const track of tracks) {
@@ -36,6 +28,21 @@ export function buildTasteProfile(tracks: ProfileTrack[]) {
     if (track.rating === 8) current.eights += 1;
     if (track.rating === 1) current.skips += 1;
     artistMap.set(key, current);
+
+    for (const reason of track.reasons ?? []) {
+      const supports =
+        (reason.polarity === "positive" && track.rating === 10) ||
+        (reason.polarity === "negative" && track.rating === 1);
+      if (!supports) continue;
+      const entry = reasonMap.get(reason.slug) ?? {
+        phrase: reason.label,
+        polarity: reason.polarity,
+        weight: reason.weight,
+        count: 0
+      };
+      entry.count += 1;
+      reasonMap.set(reason.slug, entry);
+    }
   }
 
   const artists = [...artistMap.values()];
@@ -45,40 +52,24 @@ export function buildTasteProfile(tracks: ProfileTrack[]) {
   const mixedArtists = artists
     .filter((artist) => artist.tens > 0 && artist.skips > 0)
     .sort((a, b) => b.tens + b.skips - (a.tens + a.skips));
+  const rankedReasons = [...reasonMap.values()].sort(
+    (a, b) => b.count - a.count || Math.abs(b.weight) - Math.abs(a.weight)
+  );
 
-  const strongestPositiveRules = positiveTasteRules
-    .map((rule) => ({
-      phrase: rule.phrase,
-      count: ruleCount(tracks, rule, [10]),
-      weight: rule.weight
-    }))
-    .sort((a, b) => b.count - a.count || b.weight - a.weight);
-
-  const strongestNegativeRules = negativeTasteRules
-    .map((rule) => ({
-      phrase: rule.phrase,
-      count: ruleCount(tracks, rule, [1]),
-      weight: rule.weight
-    }))
-    .sort((a, b) => b.count - a.count || a.weight - b.weight);
-
-  const learnings: string[] = [];
-  for (const artist of mixedArtists) {
-    learnings.push(
+  const learnings = mixedArtists.map(
+    (artist) =>
       `${artist.artist} remains mixed: ${artist.tens} loved, ${artist.skips} rejected.`
+  );
+  const strongestPositive = rankedReasons.find(
+    (reason) => reason.polarity === "positive" && reason.count >= 2
+  );
+  if (strongestPositive) {
+    learnings.push(
+      `${strongestPositive.phrase} appears on ${strongestPositive.count} confirmed 10s.`
     );
   }
-  if (artists.some((artist) => artist.artist.toLowerCase() === "jmsn")) {
-    learnings.push("Artist match alone is weak for JMSN.");
-  }
-  if (
-    strongestPositiveRules.find((rule) => rule.phrase === "catchy but sincere")
-      ?.count
-  ) {
-    learnings.push("Songs described as catchy + sincere are high signal.");
-  }
-  if (tracks.some((track) => track.rating === 8)) {
-    learnings.push("Songs that are only pleasant are often 8/10, not 10/10.");
+  if (!learnings.length) {
+    learnings.push("More rated tracks with selected reasons are needed for a reliable learning.");
   }
 
   return {
@@ -90,8 +81,12 @@ export function buildTasteProfile(tracks: ProfileTrack[]) {
     },
     topArtists,
     mixedArtists,
-    strongestPositiveRules,
-    strongestNegativeRules,
+    strongestPositiveRules: rankedReasons.filter(
+      (reason) => reason.polarity === "positive"
+    ),
+    strongestNegativeRules: rankedReasons.filter(
+      (reason) => reason.polarity === "negative"
+    ),
     learnings
   };
 }

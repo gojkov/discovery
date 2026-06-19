@@ -31,8 +31,7 @@ export function deriveRating(b: BehaviorInput): number | null {
   const contradicted = b.plays >= 6 && b.completions === 0 && sr >= 0.7;
 
   if (b.completions >= 5 && sr < 0.35 && b.distinctDays >= 3) return 10;
-  if (contradicted && !b.saved) return 1;
-  if (b.saved && !contradicted) return 8; // an explicit save is strong positive
+  if (contradicted) return 1;
   if (b.completions >= 2 && sr < 0.45 && b.distinctDays >= 2) return 8;
   if (b.plays >= 4) return 5;
   return null;
@@ -49,7 +48,6 @@ export function craving(b: BehaviorInput): number {
   score += Math.min(15, b.backbtns * 2); // pressing back = wanting it again
   score += Math.min(10, b.distinctDays); // sustained over time
   score -= Math.round(sr * 45); // skipping pushes it down
-  if (b.saved) score += 8;
   if (b.banned) return clamp(score, 0, 5);
   return clamp(Math.round(score), 0, 100);
 }

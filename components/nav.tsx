@@ -11,6 +11,7 @@ const links = [
   ["/candidates", "Candidates"],
   ["/review", "Review"],
   ["/discover", "Discover"],
+  ["/reasons", "Reasons"],
   ["/import/spotify-csv", "Import"],
   ["/exports", "Exports"]
 ] as const;

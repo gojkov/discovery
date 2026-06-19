@@ -11,8 +11,9 @@ A local-first, rejection-aware app that optimizes for craving and replay probabi
 - Inline editing for track metadata, notes, tags, source, and rating
 - Seeded replay monsters, true 8s, and hard negatives
 - Transparent 0–100 candidate scoring that **learns from your real outcomes**
-  (per-artist hit-rate priors + empirical phrase weights), with the static
-  rules as a cold-start prior
+  (per-artist hit-rate priors + selected taste-reason chips)
+- Curated, editable taste-reason chips; free-text notes never become scoring evidence
+- Durable rating events and reason history
 - **Active discovery** — seed from your proven 10s, pull similar tracks from
   Last.fm, dedupe, score, and queue the best (`/discover`)
 - Optional Spotify play-link enrichment on discovered candidates
@@ -85,6 +86,20 @@ listening alongside your manual library (manual ratings always win). Confirm or
 dismiss the auto-detected loves/rejects on the **Review** page. Only track-level
 aggregates are stored — no IPs or other PII from the raw export, which stays
 gitignored and is never committed.
+
+Spotify saved-library status is retained as metadata only. A save does not add
+craving points, create an 8/10 label, or override contradictory behavior.
+
+After upgrading an existing database, run:
+
+```bash
+npm run db:push
+npm run migrate:taste-model
+```
+
+The migration seeds the controlled reason taxonomy, maps recognized legacy
+tags, backfills initial rating events, and recomputes behavioral labels using
+the saved-neutral model.
 
 > The export is **behavioral, not acoustic** — it has no audio features. It
 > supercharges the preference/craving model; true sound analysis would need a

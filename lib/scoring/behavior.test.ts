@@ -29,18 +29,18 @@ describe("deriveRating", () => {
     expect(deriveRating(b({ banned: true, completions: 10, plays: 10 }))).toBe(1);
   });
 
-  it("rates an explicit save 8 when not contradicted", () => {
-    expect(deriveRating(b({ saved: true, plays: 2, completions: 1 }))).toBe(8);
+  it("does not infer preference from an explicit save", () => {
+    expect(deriveRating(b({ saved: true, plays: 2, completions: 1 }))).toBeNull();
   });
 
   it("returns null when there is too little signal", () => {
     expect(deriveRating(b({ plays: 1, completions: 1 }))).toBeNull();
   });
 
-  it("does not hard-reject a saved track even if skipped a lot", () => {
+  it("does not let a save override strong rejection behavior", () => {
     expect(
       deriveRating(b({ saved: true, plays: 8, completions: 0, skips: 8 }))
-    ).not.toBe(1);
+    ).toBe(1);
   });
 });
 
@@ -67,5 +67,12 @@ describe("craving", () => {
     const v = craving(b({ plays: 400, completions: 370, banned: true }));
     expect(v).toBeLessThanOrEqual(5);
     expect(v).toBeGreaterThanOrEqual(0);
+  });
+
+  it("treats saved status as scoring-neutral metadata", () => {
+    const input = { plays: 8, completions: 4, skips: 1, distinctDays: 3 };
+    expect(craving(b({ ...input, saved: true }))).toBe(
+      craving(b({ ...input, saved: false }))
+    );
   });
 });

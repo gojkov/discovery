@@ -77,6 +77,30 @@ export const promoteStatSchema = z.object({
 
 export const dismissStatSchema = z.object({ spotifyUri: requiredText });
 
+export const reasonSchema = z.object({
+  label: requiredText,
+  polarity: z.enum(["positive", "negative", "trajectory"]),
+  category: requiredText,
+  weight: z.preprocess(
+    (v) => Number(trimmed(v)),
+    z.number().int().min(-20).max(20)
+  )
+});
+
+export const updateReasonSchema = reasonSchema.extend({
+  id: requiredText,
+  sortOrder: z.preprocess(
+    (v) => Number(trimmed(v)),
+    z.number().int().min(0).max(10000)
+  )
+});
+
+export const reasonIdSchema = z.object({ id: requiredText });
+export const mergeReasonSchema = z.object({
+  sourceId: requiredText,
+  targetId: requiredText
+});
+
 /** Parse FormData against a schema, throwing a readable error on failure. */
 export function parseForm<S extends z.ZodType>(
   schema: S,

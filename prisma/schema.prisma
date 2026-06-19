@@ -20,6 +20,8 @@ model Track {
   spotifyUri String?  @unique
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  reasons    TrackReason[]
+  ratingEvents RatingEvent[]
 
   @@unique([title, artist])
   @@index([artist])
@@ -74,8 +76,83 @@ model Candidate {
   notesAfterListening String @default("")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  reasons           CandidateReason[]
+  ratingEvents      RatingEvent[]
 
   @@unique([title, artist])
   @@index([status])
   @@index([predictedScore])
+}
+
+model TasteReason {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  label         String
+  polarity      String
+  category      String
+  weight        Int
+  active        Boolean  @default(true)
+  userDefined   Boolean  @default(false)
+  sortOrder     Int      @default(0)
+  mergedIntoId  String?
+  mergedInto    TasteReason? @relation("ReasonMerge", fields: [mergedIntoId], references: [id])
+  mergedReasons TasteReason[] @relation("ReasonMerge")
+  trackReasons  TrackReason[]
+  candidateReasons CandidateReason[]
+  eventReasons  RatingEventReason[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([active, sortOrder])
+  @@index([polarity])
+}
+
+model TrackReason {
+  trackId   String
+  reasonId  String
+  track     Track       @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  reason    TasteReason @relation(fields: [reasonId], references: [id])
+  createdAt DateTime    @default(now())
+
+  @@id([trackId, reasonId])
+  @@index([reasonId])
+}
+
+model CandidateReason {
+  candidateId String
+  reasonId    String
+  phase       String      @default("suggestion")
+  candidate   Candidate   @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  reason      TasteReason @relation(fields: [reasonId], references: [id])
+  createdAt   DateTime    @default(now())
+
+  @@id([candidateId, reasonId, phase])
+  @@index([reasonId])
+}
+
+model RatingEvent {
+  id             String   @id @default(cuid())
+  trackId        String?
+  candidateId    String?
+  rating         Int
+  previousRating Int?
+  context        String
+  note           String   @default("")
+  track          Track?   @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  candidate      Candidate? @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  reasons        RatingEventReason[]
+  createdAt      DateTime @default(now())
+
+  @@index([trackId, createdAt])
+  @@index([candidateId])
+}
+
+model RatingEventReason {
+  ratingEventId String
+  reasonId      String
+  ratingEvent   RatingEvent @relation(fields: [ratingEventId], references: [id], onDelete: Cascade)
+  reason        TasteReason @relation(fields: [reasonId], references: [id])
+
+  @@id([ratingEventId, reasonId])
+  @@index([reasonId])
 }

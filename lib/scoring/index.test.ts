@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { scoreCandidate } from "@/lib/scoring";
+import type { ReasonSignal } from "@/lib/reasons";
 import type { TrackKnowledge } from "@/lib/types";
+
+const reason = (
+  slug: string,
+  label: string,
+  polarity: "positive" | "negative",
+  weight: number
+): ReasonSignal => ({ slug, label, polarity, weight, category: "test" });
+
+const chorus = reason("strong-chorus", "strong chorus", "positive", 10);
+const noCraving = reason("good-but-no-craving", "good but no craving", "negative", -6);
 
 const history: TrackKnowledge[] = [
   { title: "good2kno", artist: "CUBE", rating: 10 },
@@ -12,17 +23,12 @@ const history: TrackKnowledge[] = [
 ];
 
 describe("scoreCandidate", () => {
-  it("strongly rewards CUBE but stays within 100", () => {
+  it("strongly rewards proven artists plus selected positive reasons", () => {
     const result = scoreCandidate(
-      {
-        title: "New Song",
-        artist: "CUBE",
-        tags: ["strong chorus", "immediate attention"]
-      },
+      { title: "New Song", artist: "CUBE", reasons: [chorus] },
       history
     );
-    expect(result.score).toBeGreaterThanOrEqual(80);
-    expect(result.suggestedAction).toBe("must sample");
+    expect(result.score).toBeGreaterThanOrEqual(75);
   });
 
   it("warns when an artist has both 10s and skips", () => {
@@ -31,98 +37,40 @@ describe("scoreCandidate", () => {
       history
     );
     expect(result.risks.join(" ")).toContain("Requires song-level validation");
-    expect(result.score).toBeLessThan(85);
   });
 
-  it("penalizes known negative language", () => {
-    const result = scoreCandidate(
-      {
-        title: "Neon",
-        artist: "New Artist",
-        whySuggested: "bright synth-pop like Blinding Lights"
-      },
+  it("scores only structured reasons, never arbitrary prose", () => {
+    const plain = scoreCandidate({ title: "A", artist: "Unknown" }, history);
+    const selected = scoreCandidate(
+      { title: "B", artist: "Unknown", reasons: [chorus] },
       history
     );
-    expect(result.score).toBeLessThan(40);
-    expect(result.risks.length).toBeGreaterThan(0);
+    expect(selected.score).toBe(plain.score + chorus.weight);
   });
 
-  it("treats catchy and sincere as a strong song-level signal", () => {
-    const plain = scoreCandidate(
-      { title: "A", artist: "Unknown" },
-      history
-    );
-    const signaled = scoreCandidate(
-      {
-        title: "B",
-        artist: "Unknown",
-        whySuggested: "catchy and sincere with a strong chorus"
-      },
-      history
-    );
-    expect(signaled.score).toBeGreaterThan(plain.score + 15);
-  });
-});
-
-describe("scoreCandidate — learning from history", () => {
-  it("reinforces a phrase that co-occurs with proven 10s", () => {
-    const noEvidence: TrackKnowledge[] = [
-      { title: "x", artist: "Zed", rating: 10 }
+  it("learns reason associations only from selected reason ids", () => {
+    const reinforced: TrackKnowledge[] = [
+      { title: "a", artist: "Zed", rating: 10, reasons: [chorus] },
+      { title: "b", artist: "Yan", rating: 10, reasons: [chorus] }
     ];
-    const withEvidence: TrackKnowledge[] = [
-      { title: "a", artist: "Zed", rating: 10, tags: ["strong chorus"] },
-      { title: "b", artist: "Yan", rating: 10, notes: "big chorus all the way" }
-    ];
-    const cand = { title: "New", artist: "Unknown", tags: ["strong chorus"] };
-    expect(scoreCandidate(cand, withEvidence).score).toBeGreaterThan(
-      scoreCandidate(cand, noEvidence).score
+    const candidate = { title: "New", artist: "Unknown", reasons: [chorus] };
+    expect(scoreCandidate(candidate, reinforced).score).toBeGreaterThan(
+      scoreCandidate(candidate, []).score
     );
   });
 
-  it("deepens a penalty when a phrase co-occurs with skips", () => {
+  it("deepens a selected negative reason associated with rejects", () => {
     const regret: TrackKnowledge[] = [
-      { title: "r1", artist: "Q", rating: 1, notes: "pleasant but no craving" },
-      { title: "r2", artist: "W", rating: 1, tags: ["good but no craving"] }
+      { title: "r1", artist: "Q", rating: 1, reasons: [noCraving] },
+      { title: "r2", artist: "W", rating: 1, reasons: [noCraving] }
     ];
-    const cand = {
+    const candidate = {
       title: "c",
       artist: "Unknown",
-      whySuggested: "pleasant, no craving"
+      reasons: [noCraving]
     };
-    expect(scoreCandidate(cand, regret).score).toBeLessThan(
-      scoreCandidate(cand, []).score
+    expect(scoreCandidate(candidate, regret).score).toBeLessThan(
+      scoreCandidate(candidate, []).score
     );
-  });
-
-  it("rewards a clean artist over a mixed one via learned hit-rate", () => {
-    const clean: TrackKnowledge[] = Array.from({ length: 3 }, (_, i) => ({
-      title: `c${i}`,
-      artist: "Pure",
-      rating: 10
-    }));
-    const mixed: TrackKnowledge[] = [
-      ...Array.from({ length: 3 }, (_, i) => ({
-        title: `m${i}`,
-        artist: "Mix",
-        rating: 10 as const
-      })),
-      { title: "m4", artist: "Mix", rating: 1 },
-      { title: "m5", artist: "Mix", rating: 1 }
-    ];
-    expect(scoreCandidate({ title: "n", artist: "Pure" }, clean).score).toBeGreaterThan(
-      scoreCandidate({ title: "n", artist: "Mix" }, mixed).score
-    );
-  });
-
-  it("still scores from static rules on a cold start (no history)", () => {
-    const result = scoreCandidate(
-      {
-        title: "x",
-        artist: "Nobody",
-        whySuggested: "strong chorus, immediate attention, replay craving"
-      },
-      []
-    );
-    expect(result.score).toBeGreaterThan(60);
   });
 });

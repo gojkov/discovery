@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import type { TrackKnowledge } from "@/lib/types";
-import { normalize, parseTags } from "./text";
+import { reasonSignals } from "@/lib/reasons";
+import { normalize } from "./text";
 
 const key = (title: string, artist: string) =>
   `${normalize(title)}|${normalize(artist)}`;
@@ -12,7 +13,14 @@ const key = (title: string, artist: string) =>
  */
 export async function loadKnowledge(): Promise<TrackKnowledge[]> {
   const [tracks, stats] = await Promise.all([
-    db.track.findMany(),
+    db.track.findMany({
+      include: {
+        reasons: {
+          where: { reason: { active: true, mergedIntoId: null } },
+          include: { reason: true }
+        }
+      }
+    }),
     db.streamStat.findMany({
       where: { derivedRating: { not: null } },
       select: { title: true, artist: true, derivedRating: true }
@@ -26,7 +34,7 @@ export async function loadKnowledge(): Promise<TrackKnowledge[]> {
       title: s.title,
       artist: s.artist,
       rating: s.derivedRating as number,
-      tags: []
+      reasons: []
     });
   }
   // Manual ratings override behavioral for the same track.
@@ -35,8 +43,7 @@ export async function loadKnowledge(): Promise<TrackKnowledge[]> {
       title: t.title,
       artist: t.artist,
       rating: t.rating,
-      notes: t.notes,
-      tags: parseTags(t.tags)
+      reasons: reasonSignals(t.reasons)
     });
   }
   return [...byKey.values()];

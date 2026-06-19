@@ -67,10 +67,10 @@ export default async function ReviewPage() {
       <div>
         <Eyebrow>From your listening history</Eyebrow>
         <h1 className="text-4xl font-medium tracking-tight text-fg">
-          Confirm what your behavior already knows
+          Review what your behavior suggests
         </h1>
         <p className="mt-3 max-w-2xl text-muted">
-          Auto-detected from a decade of plays, skips, and replays. Confirm to add
+          Inferred from plays, skips, and replays. Confirm to add
           to your authoritative library — or dismiss. Either way it leaves the
           queue.
         </p>

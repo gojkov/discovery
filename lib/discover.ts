@@ -153,7 +153,7 @@ export async function discoverCandidates(opts?: {
       artist,
       whySuggested,
       link,
-      result: scoreWithModel({ title: s.title, artist, whySuggested }, model)
+      result: scoreWithModel({ title: s.title, artist }, model)
     });
   }
 

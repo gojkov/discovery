@@ -1,33 +1,15 @@
-import {
-  knownArtistSignals,
-  negativeTasteRules,
-  positiveTasteRules
-} from "@/taste-rules";
+import { knownArtistSignals } from "@/taste-rules";
 import type {
   CandidateForScoring,
   ScoreResult,
   TrackKnowledge
 } from "@/lib/types";
-import { artistParts, matchesRule, normalize } from "./text";
+import { artistParts } from "./text";
 import {
   artistRecord,
   buildModel,
   type LearnedModel
 } from "./learn";
-
-function candidateText(candidate: CandidateForScoring): string {
-  return normalize(
-    [
-      candidate.title,
-      candidate.artist,
-      candidate.whySuggested,
-      candidate.notes,
-      ...(candidate.tags ?? [])
-    ]
-      .filter(Boolean)
-      .join(" ")
-  );
-}
 
 /**
  * Score a candidate against a learned taste model.
@@ -46,7 +28,6 @@ export function scoreWithModel(
   const explanations: string[] = [];
   const risks: string[] = [];
   const parts = artistParts(candidate.artist);
-  const text = candidateText(candidate);
 
   // ---- Artist signal, learned from real outcomes ----
   const record = artistRecord(model, candidate.artist);
@@ -108,31 +89,28 @@ export function scoreWithModel(
     }
   }
 
-  // ---- Song-level phrase signal: static weight + learned association ----
-  for (const rule of positiveTasteRules) {
-    if (!matchesRule(text, rule)) continue;
-    const assoc = model.phraseAssoc.get(rule.phrase) ?? 0;
-    const weight = rule.weight + Math.max(0, assoc);
+  // ---- Song-level signal: selected, normalized reason chips only ----
+  for (const reason of candidate.reasons ?? []) {
+    if (reason.polarity === "trajectory" || reason.weight === 0) continue;
+    const assoc = model.reasonAssoc.get(reason.slug) ?? 0;
+    const weight =
+      reason.polarity === "negative"
+        ? reason.weight + Math.min(0, assoc)
+        : reason.weight + Math.max(0, assoc);
     score += weight;
     evidence += 1;
-    explanations.push(
-      `Positive signal: ${rule.phrase} (+${weight})${assoc > 0 ? " — reinforced by your 10s" : ""}.`
-    );
+    if (reason.polarity === "negative") {
+      risks.push(`Negative reason: ${reason.label} (${weight}).`);
+    } else {
+      explanations.push(
+        `Positive reason: ${reason.label} (+${weight})${assoc > 0 ? " — reinforced by your 10s" : ""}.`
+      );
+    }
   }
 
-  for (const rule of negativeTasteRules) {
-    if (!matchesRule(text, rule)) continue;
-    const assoc = model.phraseAssoc.get(rule.phrase) ?? 0;
-    // assoc < 0 means the phrase co-occurred with skips → deepen the penalty.
-    const weight = rule.weight + Math.min(0, assoc);
-    score += weight;
-    evidence += 1;
-    risks.push(`Negative signal: ${rule.phrase} (${weight}).`);
-  }
-
-  if ((candidate.tags ?? []).length === 0 && !candidate.whySuggested?.trim()) {
+  if ((candidate.reasons ?? []).length === 0) {
     risks.push(
-      "Little song-level evidence was provided, so this score is exploratory."
+      "No structured song-level reasons were selected, so this score is exploratory."
     );
   }
 

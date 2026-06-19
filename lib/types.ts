@@ -13,16 +13,13 @@ export type TrackKnowledge = {
   title: string;
   artist: string;
   rating: number;
-  notes?: string;
-  tags?: string[];
+  reasons?: import("@/lib/reasons").ReasonSignal[];
 };
 
 export type CandidateForScoring = {
   title: string;
   artist: string;
-  whySuggested?: string;
-  notes?: string;
-  tags?: string[];
+  reasons?: import("@/lib/reasons").ReasonSignal[];
 };
 
 export type ScoreResult = {
@@ -39,10 +36,3 @@ export type ScoreResult = {
 };
 
 export { parseTags as parseStringList } from "@/lib/scoring/text";
-
-export function normalizeTags(value: FormDataEntryValue | null): string[] {
-  return String(value ?? "")
-    .split(",")
-    .map((tag) => tag.trim().toLowerCase())
-    .filter(Boolean);
-}

@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { db } from "@/lib/db";
 import { buildTasteProfile } from "@/lib/profile";
+import { reasonSignals } from "@/lib/reasons";
 import { Card, Eyebrow } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +17,14 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const [tracks, candidates, streamCount, behavioralLoves, pendingReview] =
     await Promise.all([
-      db.track.findMany(),
+      db.track.findMany({
+        include: {
+          reasons: {
+            where: { reason: { active: true, mergedIntoId: null } },
+            include: { reason: true }
+          }
+        }
+      }),
       db.candidate.findMany(),
       db.streamStat.count(),
       db.streamStat.count({ where: { derivedRating: 10 } }),
@@ -25,7 +33,11 @@ export default async function DashboardPage() {
       })
     ]);
   const profile = buildTasteProfile(
-    tracks.map((track) => ({ ...track, tags: track.tags }))
+    tracks.map((track) => ({
+      artist: track.artist,
+      rating: track.rating,
+      reasons: reasonSignals(track.reasons)
+    }))
   );
   const funnel = Object.fromEntries(
     ["unreviewed", "sampled", "promoted", "rejected"].map((status) => [
@@ -94,15 +106,15 @@ export default async function DashboardPage() {
               <div>
                 <Eyebrow className="!text-violet">Behavioral intelligence</Eyebrow>
                 <p className="text-base text-fg">
-                  Trained on{" "}
+                  Behavioral evidence across{" "}
                   <span className="tabular font-semibold">
                     {streamCount.toLocaleString()}
                   </span>{" "}
-                  tracks from your real listening —{" "}
+                  tracks from your listening history —{" "}
                   <span className="tabular font-semibold text-lime">
                     {behavioralLoves.toLocaleString()}
                   </span>{" "}
-                  behavioral 10s detected.
+                  high-confidence 10 candidates detected.
                 </p>
               </div>
               {pendingReview > 0 && (

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { buildTasteProfile } from "@/lib/profile";
 import { parseStringList } from "@/lib/types";
+import { reasonSignals } from "@/lib/reasons";
 
 export const dynamic = "force-dynamic";
 
@@ -15,9 +16,16 @@ export async function GET(
   const { kind } = await params;
 
   if (kind === "tracks") {
-    const tracks = await db.track.findMany({ orderBy: { createdAt: "desc" } });
+    const tracks = await db.track.findMany({
+      include: { reasons: { include: { reason: true } } },
+      orderBy: { createdAt: "desc" }
+    });
     return NextResponse.json(
-      tracks.map((track) => ({ ...track, tags: parseStringList(track.tags) })),
+      tracks.map((track) => ({
+        ...track,
+        tags: undefined,
+        reasons: reasonSignals(track.reasons)
+      })),
       {
         headers: {
           "Content-Disposition": 'attachment; filename="steve-tracks.json"'
@@ -28,12 +36,17 @@ export async function GET(
 
   if (kind === "candidates") {
     const candidates = await db.candidate.findMany({
+      include: { reasons: { include: { reason: true } } },
       orderBy: { predictedScore: "desc" }
     });
     return NextResponse.json(
       candidates.map((candidate) => ({
         ...candidate,
-        tags: parseStringList(candidate.tags),
+        tags: undefined,
+        reasons: candidate.reasons.map(({ phase, reason }) => ({
+          phase,
+          ...reason
+        })),
         explanation: parseStringList(candidate.explanation),
         risks: parseStringList(candidate.risks)
       })),
@@ -88,8 +101,14 @@ export async function GET(
   }
 
   if (kind === "taste-profile") {
-    const tracks = await db.track.findMany();
-    return NextResponse.json(buildTasteProfile(tracks), {
+    const tracks = await db.track.findMany({
+      include: { reasons: { include: { reason: true } } }
+    });
+    return NextResponse.json(buildTasteProfile(tracks.map((track) => ({
+      artist: track.artist,
+      rating: track.rating,
+      reasons: reasonSignals(track.reasons)
+    }))), {
       headers: {
         "Content-Disposition": 'attachment; filename="taste-profile.json"'
       }

@@ -6,6 +6,7 @@ import {
 import { Badge, Card, Eyebrow, inputClass } from "@/components/ui";
 import { CoverArt } from "@/components/cover-art";
 import { SubmitButton } from "@/components/submit-button";
+import { ReasonChips } from "@/components/reason-chips";
 import { db } from "@/lib/db";
 import { fetchTrackImages } from "@/lib/integrations/spotify";
 import { parseStringList } from "@/lib/types";
@@ -25,9 +26,16 @@ const trackUriFromLink = (link: string | null): string | null => {
 };
 
 export default async function CandidatesPage() {
-  const candidates = await db.candidate.findMany({
-    orderBy: [{ predictedScore: "desc" }, { createdAt: "desc" }]
-  });
+  const [candidates, reasons] = await Promise.all([
+    db.candidate.findMany({
+      include: { reasons: { include: { reason: true } } },
+      orderBy: [{ predictedScore: "desc" }, { createdAt: "desc" }]
+    }),
+    db.tasteReason.findMany({
+      where: { active: true, mergedIntoId: null },
+      orderBy: [{ sortOrder: "asc" }, { label: "asc" }]
+    })
+  ]);
 
   // Backfill cover art for candidates that predate the stored image field,
   // by resolving the Spotify track id out of their source link.
@@ -73,11 +81,7 @@ export default async function CandidatesPage() {
             type="url"
             placeholder="Spotify / Apple / YouTube link"
           />
-          <input
-            className={inputClass}
-            name="tags"
-            placeholder="strong chorus, catchy but sincere…"
-          />
+          <ReasonChips reasons={reasons} />
           <textarea
             className={`${inputClass} min-h-28 md:col-span-2`}
             name="whySuggested"
@@ -143,9 +147,11 @@ export default async function CandidatesPage() {
                       </p>
                     )}
                     <div className="mt-4 flex flex-wrap gap-1">
-                      {parseStringList(candidate.tags).map((tag) => (
-                        <Badge key={tag}>{tag}</Badge>
-                      ))}
+                      {candidate.reasons
+                        .filter(({ phase }) => phase === "suggestion")
+                        .map(({ reason }) => (
+                          <Badge key={reason.id}>{reason.label}</Badge>
+                        ))}
                     </div>
                     <details className="mt-5 rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4">
                       <summary className="cursor-pointer text-sm font-semibold text-fg">
@@ -201,6 +207,14 @@ export default async function CandidatesPage() {
                       name="notesAfterListening"
                       defaultValue={candidate.notesAfterListening}
                       placeholder="What landed or failed?"
+                    />
+                    <ReasonChips
+                      reasons={reasons}
+                      name="outcomeReasonIds"
+                      selected={candidate.reasons
+                        .filter(({ phase }) => phase === "outcome")
+                        .map(({ reasonId }) => reasonId)}
+                      includeTrajectory
                     />
                     <SubmitButton
                       pendingLabel="Saving…"

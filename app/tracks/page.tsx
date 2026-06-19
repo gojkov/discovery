@@ -2,16 +2,23 @@ import { addTrack, rateTrack, updateTrack } from "@/app/actions";
 import { Card, Eyebrow, Badge, buttonClass, inputClass } from "@/components/ui";
 import { CoverArt } from "@/components/cover-art";
 import { SubmitButton } from "@/components/submit-button";
+import { ReasonChips } from "@/components/reason-chips";
 import { db } from "@/lib/db";
 import { fetchTrackImages } from "@/lib/integrations/spotify";
-import { parseStringList } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function TracksPage() {
-  const tracks = await db.track.findMany({
-    orderBy: [{ rating: "desc" }, { artist: "asc" }, { title: "asc" }]
-  });
+  const [tracks, reasons] = await Promise.all([
+    db.track.findMany({
+      include: { reasons: { include: { reason: true } } },
+      orderBy: [{ rating: "desc" }, { artist: "asc" }, { title: "asc" }]
+    }),
+    db.tasteReason.findMany({
+      where: { active: true, mergedIntoId: null },
+      orderBy: [{ sortOrder: "asc" }, { label: "asc" }]
+    })
+  ]);
   // Cover art for tracks linked to a Spotify URI (promoted from history).
   const images = await fetchTrackImages(
     tracks.map((t) => t.spotifyUri).filter((u): u is string => Boolean(u))
@@ -48,11 +55,7 @@ export default async function TracksPage() {
             <option value="5">5 — neutral / forgettable</option>
             <option value="1">1 — skip / false positive</option>
           </select>
-          <input
-            className={`${inputClass} md:col-span-2`}
-            name="tags"
-            placeholder="Tags, comma separated — e.g. melody-first, strong chorus"
-          />
+          <ReasonChips reasons={reasons} />
           <textarea
             className={`${inputClass} min-h-28 md:col-span-2`}
             name="notes"
@@ -114,8 +117,8 @@ export default async function TracksPage() {
                       </p>
                     )}
                     <div className="mt-3 flex flex-wrap gap-1.5">
-                      {parseStringList(track.tags).map((tag) => (
-                        <Badge key={tag}>{tag}</Badge>
+                      {track.reasons.map(({ reason }) => (
+                        <Badge key={reason.id}>{reason.label}</Badge>
                       ))}
                     </div>
                   </div>
@@ -162,11 +165,10 @@ export default async function TracksPage() {
                       <option value="5">5 — neutral</option>
                       <option value="1">1 — skip</option>
                     </select>
-                    <input
-                      className={`${inputClass} md:col-span-2`}
-                      name="tags"
-                      defaultValue={parseStringList(track.tags).join(", ")}
-                      placeholder="Tags"
+                    <ReasonChips
+                      reasons={reasons}
+                      selected={track.reasons.map(({ reasonId }) => reasonId)}
+                      includeTrajectory
                     />
                     <textarea
                       className={`${inputClass} min-h-24 md:col-span-2`}
