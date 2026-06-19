@@ -41,14 +41,22 @@ async function getToken(): Promise<string> {
   return cachedToken.value;
 }
 
-export type SpotifyMatch = { url: string; uri: string; image: string | null };
+export type SpotifyMatch = {
+  url: string;
+  uri: string;
+  image: string | null;
+  artistId: string | null;
+  artistName: string | null;
+};
 
 type SpotifyImage = { url: string };
+type SpotifyArtist = { id?: string; name?: string };
 type SpotifyTrackObj = {
   id?: string;
   uri?: string;
   external_urls?: { spotify?: string };
   album?: { images?: SpotifyImage[] };
+  artists?: SpotifyArtist[];
 };
 
 // Prefer the medium (~300px) image, falling back to the largest available.
@@ -79,9 +87,39 @@ export async function findTrackLink(
     const json = (await res.json()) as { tracks?: { items?: SpotifyTrackObj[] } };
     const hit = json.tracks?.items?.[0];
     if (!hit?.external_urls?.spotify || !hit.uri) return null;
-    return { url: hit.external_urls.spotify, uri: hit.uri, image: pickImage(hit) };
+    return {
+      url: hit.external_urls.spotify,
+      uri: hit.uri,
+      image: pickImage(hit),
+      artistId: hit.artists?.[0]?.id ?? null,
+      artistName: hit.artists?.[0]?.name ?? null
+    };
   } catch {
     // Link enrichment is optional; never fail discovery over it.
+    return null;
+  }
+}
+
+/**
+ * The primary Spotify artist id behind a known track URI. Used to learn the
+ * *real* identity of a listener's artists (so a same-named impostor can't
+ * inherit their taste signal).
+ */
+export async function primaryArtistId(trackUri: string): Promise<string | null> {
+  if (!spotifyConfigured()) return null;
+  try {
+    const token = await getToken();
+    const res = await fetch(
+      `https://api.spotify.com/v1/tracks/${trackId(trackUri)}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(8000)
+      }
+    );
+    if (!res.ok) return null;
+    const t = (await res.json()) as SpotifyTrackObj;
+    return t.artists?.[0]?.id ?? null;
+  } catch {
     return null;
   }
 }
