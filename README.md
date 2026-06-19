@@ -1,6 +1,8 @@
 # Steve Discovery Engine
 
-A local-first, rejection-aware music discovery app that optimizes for craving and replay probability—not artist similarity or skip avoidance.
+Music discovery that actually understands why you like what you like. Metadata is not enough.
+
+A local-first, rejection-aware app that optimizes for craving and replay probability—not artist similarity or skip avoidance.
 
 ## What works now
 
