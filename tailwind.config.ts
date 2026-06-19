@@ -19,15 +19,15 @@ export default {
       },
       colors: {
         // Surfaces — layered near-black with a cool cast.
-        ink: "#07070b",
-        night: "#0b0b12",
-        panel: "#111119",
-        raised: "#16161f",
+        ink: "#08090f",
+        night: "#0d0e16",
+        panel: "#12131c",
+        raised: "#1a1b27",
 
         // Text — all AA-compliant on the dark surfaces above.
-        fg: "#f5f5fa", // primary
-        muted: "#b4b4c4", // secondary (~7:1)
-        subtle: "#9494a6", // tertiary (~4.9:1, normal-text AA)
+        fg: "#fafaff", // primary
+        muted: "#d0d0dc", // secondary, intentionally bright
+        subtle: "#b2b2c2", // tertiary, AA even at small sizes
 
         // Accents — vibrant but readable as text on dark.
         cyan: "#5cd6ff",
@@ -38,13 +38,13 @@ export default {
         amber: "#ffc55c",
 
         // Back-compat aliases used in older markup (mapped to the new scale).
-        cream: "#f5f5fa",
+        cream: "#fafaff",
         acid: "#b6ff5c",
         mist: "#5cd6ff"
       },
       boxShadow: {
-        card: "0 18px 50px -18px rgba(0, 0, 0, 0.7)",
-        glow: "0 0 32px -6px rgba(92, 214, 255, 0.35)"
+        card: "0 24px 70px -28px rgba(0, 0, 0, 0.82)",
+        glow: "0 0 38px -8px rgba(92, 214, 255, 0.52)"
       },
       borderRadius: {
         "4xl": "1.75rem",

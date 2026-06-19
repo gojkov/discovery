@@ -1,5 +1,5 @@
 {
-  "name": "steve-discovery-engine",
+  "name": "soundslikeme",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -12,7 +12,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "import:spotify": "tsx scripts/import-spotify.ts",
-    "migrate:taste-model": "tsx scripts/migrate-taste-model.ts"
+    "migrate:taste-model": "tsx scripts/migrate-taste-model.ts",
+    "backfill:candidate-reviews": "tsx scripts/backfill-candidate-reviews.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.7.0",

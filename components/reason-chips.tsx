@@ -25,7 +25,7 @@ export function ReasonChips({
   return (
     <fieldset className="md:col-span-2">
       <legend className="mb-2 text-sm font-medium text-fg">
-        Taste reasons <span className="font-normal text-subtle">(optional)</span>
+        Taste reasons <span className="font-normal text-muted">(optional)</span>
       </legend>
       <div className="flex flex-wrap gap-2">
         {visible.map((reason) => {
@@ -34,7 +34,7 @@ export function ReasonChips({
             <label
               key={reason.id}
               className={clsx(
-                "cursor-pointer rounded-full border px-3 py-2 text-xs font-medium transition has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-cyan/15",
+                "cursor-pointer rounded-full border bg-white/[0.04] px-3 py-2 text-xs font-semibold transition hover:bg-white/[0.09] has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-cyan/20",
                 reason.polarity === "negative"
                   ? "border-coral/25 text-coral has-[:checked]:bg-coral/20"
                   : reason.polarity === "trajectory"

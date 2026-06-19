@@ -70,7 +70,7 @@ export default async function ReasonsPage() {
             </form>
             <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/[0.06] pt-3">
               {reason.mergedInto ? (
-                <span className="text-xs text-subtle">
+                <span className="text-xs font-medium text-muted">
                   Merged into {reason.mergedInto.label}
                 </span>
               ) : reason.active ? (

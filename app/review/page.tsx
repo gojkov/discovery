@@ -83,7 +83,7 @@ export default async function ReviewPage() {
           </span>
           <h2 className="text-lg font-semibold text-fg">
             Likely 10s{" "}
-            <span className="tabular text-subtle">({loveRows.length})</span>
+            <span className="tabular text-muted">({loveRows.length})</span>
           </h2>
         </div>
         {loveRows.length === 0 ? (
@@ -109,7 +109,7 @@ export default async function ReviewPage() {
                         {row.saved && <Badge tone="good">saved</Badge>}
                       </div>
                       <p className="text-sm text-muted">{row.artist}</p>
-                      <p className="tabular mt-1 font-mono text-xs text-subtle">
+                      <p className="tabular mt-1 font-mono text-xs text-muted">
                         {evidenceFor(row)}
                       </p>
                     </div>
@@ -129,7 +129,7 @@ export default async function ReviewPage() {
                       <input type="hidden" name="spotifyUri" value={row.spotifyUri} />
                       <SubmitButton
                         pendingLabel="…"
-                        className="rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-sm font-medium text-muted hover:text-fg"
+                        className="rounded-full border border-white/20 bg-white/[0.07] px-4 py-2 text-sm font-semibold text-fg hover:bg-white/[0.12]"
                       >
                         <X size={15} /> Dismiss
                       </SubmitButton>
@@ -149,7 +149,7 @@ export default async function ReviewPage() {
           </span>
           <h2 className="text-lg font-semibold text-fg">
             Likely false positives{" "}
-            <span className="tabular text-subtle">({rejectRows.length})</span>
+            <span className="tabular text-muted">({rejectRows.length})</span>
           </h2>
         </div>
         {rejectRows.length === 0 ? (
@@ -170,7 +170,7 @@ export default async function ReviewPage() {
                         {row.title}
                       </h3>
                       <p className="text-sm text-muted">{row.artist}</p>
-                      <p className="tabular mt-1 font-mono text-xs text-subtle">
+                      <p className="tabular mt-1 font-mono text-xs text-muted">
                         {evidenceFor(row)}
                       </p>
                     </div>
@@ -190,7 +190,7 @@ export default async function ReviewPage() {
                       <input type="hidden" name="spotifyUri" value={row.spotifyUri} />
                       <SubmitButton
                         pendingLabel="…"
-                        className="rounded-full border border-white/12 bg-white/[0.04] px-4 py-2 text-sm font-medium text-muted hover:text-fg"
+                        className="rounded-full border border-white/20 bg-white/[0.07] px-4 py-2 text-sm font-semibold text-fg hover:bg-white/[0.12]"
                       >
                         <X size={15} /> Dismiss
                       </SubmitButton>

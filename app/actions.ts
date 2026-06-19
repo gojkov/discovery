@@ -83,6 +83,7 @@ async function rescoreCandidatesNow() {
   const [knowledge, candidates] = await Promise.all([
     loadKnowledge(),
     db.candidate.findMany({
+      where: { status: { in: ["unreviewed", "sampled"] } },
       include: {
         reasons: {
           where: {
@@ -252,34 +253,19 @@ export async function reviewCandidate(formData: FormData) {
   const reasons = await activeReasons(
     selectedReasonIds(formData, "outcomeReasonIds")
   );
-  const candidate = await db.candidate.update({
-    where: { id: data.id },
-    data: {
-      status: data.status,
-      finalRating: data.finalRating,
-      notesAfterListening: data.notesAfterListening
-    }
-  });
-  await db.candidateReason.deleteMany({
-    where: { candidateId: candidate.id, phase: "outcome" }
-  });
-  if (reasons.length) {
-    await db.candidateReason.createMany({
-      data: reasons.map((reason) => ({
-        candidateId: candidate.id,
-        reasonId: reason.id,
-        phase: "outcome"
-      }))
-    });
-  }
+  const status = data.finalRating === 1 ? "rejected" : "promoted";
+  const reasonIds = reasons.map((reason) => reason.id);
 
-  if (data.status === "promoted" && data.finalRating) {
-    const previous = await db.track.findUnique({
+  await db.$transaction(async (tx) => {
+    const candidate = await tx.candidate.findUniqueOrThrow({
+      where: { id: data.id }
+    });
+    const previous = await tx.track.findUnique({
       where: {
         title_artist: { title: candidate.title, artist: candidate.artist }
       }
     });
-    const track = await db.track.upsert({
+    const track = await tx.track.upsert({
       where: {
         title_artist: { title: candidate.title, artist: candidate.artist }
       },
@@ -296,18 +282,53 @@ export async function reviewCandidate(formData: FormData) {
         rating: data.finalRating
       }
     });
-    await replaceTrackReasons(track.id, reasons.map((reason) => reason.id));
-    await createRatingEvent({
-      trackId: track.id,
-      candidateId: candidate.id,
-      rating: data.finalRating,
-      previousRating: previous?.rating,
-      context: "candidate-review",
-      note: data.notesAfterListening,
-      reasonIds: reasons.map((reason) => reason.id)
-    });
-  }
 
+    await tx.candidate.update({
+      where: { id: candidate.id },
+      data: {
+        status,
+        finalRating: data.finalRating,
+        notesAfterListening: data.notesAfterListening
+      }
+    });
+    await tx.candidateReason.deleteMany({
+      where: { candidateId: candidate.id, phase: "outcome" }
+    });
+    if (reasonIds.length) {
+      await tx.candidateReason.createMany({
+        data: reasonIds.map((reasonId) => ({
+          candidateId: candidate.id,
+          reasonId,
+          phase: "outcome"
+        }))
+      });
+    }
+    await tx.trackReason.deleteMany({ where: { trackId: track.id } });
+    if (reasonIds.length) {
+      await tx.trackReason.createMany({
+        data: reasonIds.map((reasonId) => ({ trackId: track.id, reasonId }))
+      });
+    }
+    await tx.ratingEvent.create({
+      data: {
+        trackId: track.id,
+        candidateId: candidate.id,
+        rating: data.finalRating,
+        previousRating: previous?.rating,
+        context: "candidate-review",
+        note: data.notesAfterListening,
+        reasons: reasonIds.length
+          ? {
+              create: reasonIds.map((reasonId) => ({
+                reason: { connect: { id: reasonId } }
+              }))
+            }
+          : undefined
+      }
+    });
+  });
+
+  await rescoreCandidatesNow();
   revalidateAll();
 }
 

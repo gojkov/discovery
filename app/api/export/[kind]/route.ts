@@ -28,7 +28,7 @@ export async function GET(
       })),
       {
         headers: {
-          "Content-Disposition": 'attachment; filename="steve-tracks.json"'
+          "Content-Disposition": 'attachment; filename="soundslikeme-tracks.json"'
         }
       }
     );
@@ -52,7 +52,7 @@ export async function GET(
       })),
       {
         headers: {
-          "Content-Disposition": 'attachment; filename="steve-candidates.json"'
+          "Content-Disposition": 'attachment; filename="soundslikeme-candidates.json"'
         }
       }
     );

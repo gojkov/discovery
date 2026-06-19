@@ -74,7 +74,7 @@ export default async function TracksPage() {
           <h2 className="font-semibold text-fg">
             <span className="tabular">{tracks.length}</span> known tracks
           </h2>
-          <span className="text-xs text-subtle">Tap any grade to re-rate</span>
+          <span className="text-xs font-medium text-muted">Tap any grade to re-rate</span>
         </div>
         <div className="divide-y divide-white/[0.06]">
           {tracks.map((track) => {
@@ -100,7 +100,7 @@ export default async function TracksPage() {
                         <Badge tone={tone}>
                           <span className="tabular">{track.rating}/10</span>
                         </Badge>
-                        <span className="font-mono text-[10px] uppercase tracking-eyebrow text-subtle">
+                        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
                           {track.source}
                         </span>
                       </div>
@@ -134,7 +134,7 @@ export default async function TracksPage() {
                         className={`tabular grid size-10 place-items-center rounded-2xl border text-xs font-semibold transition ${
                           track.rating === rating
                             ? "border-cyan bg-cyan text-ink shadow-glow"
-                            : "border-white/10 bg-white/[0.04] text-muted hover:border-pink/60 hover:text-pink"
+                            : "border-white/20 bg-white/[0.07] text-fg hover:border-pink/70 hover:bg-white/[0.1] hover:text-pink"
                         }`}
                       >
                         {rating}
@@ -143,7 +143,7 @@ export default async function TracksPage() {
                   </form>
                 </div>
                 <details className="mt-4 border-t border-white/[0.06] pt-4">
-                  <summary className="cursor-pointer font-mono text-xs font-medium uppercase tracking-eyebrow text-cyan/80 transition hover:text-cyan">
+                  <summary className="cursor-pointer font-mono text-xs font-semibold uppercase tracking-[0.16em] text-cyan transition hover:text-fg">
                     Edit track details
                   </summary>
                   <form action={updateTrack} className="mt-4 grid gap-3 md:grid-cols-2">

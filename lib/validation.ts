@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { CANDIDATE_STATUSES } from "@/lib/types";
 
 const trimmed = (v: unknown) => String(v ?? "").trim();
 
@@ -26,19 +25,6 @@ const rating = z.preprocess(
   z.union([z.literal(10), z.literal(8), z.literal(5), z.literal(1)])
 );
 
-const optionalRating = z.preprocess(
-  (v) => (trimmed(v) ? Number(trimmed(v)) : null),
-  z.union([
-    z.literal(10),
-    z.literal(8),
-    z.literal(5),
-    z.literal(1),
-    z.null()
-  ])
-);
-
-const status = z.enum(CANDIDATE_STATUSES);
-
 export const trackSchema = z.object({
   title: requiredText,
   artist: requiredText,
@@ -62,8 +48,7 @@ export const candidateSchema = z.object({
 
 export const reviewSchema = z.object({
   id: requiredText,
-  status,
-  finalRating: optionalRating,
+  finalRating: rating,
   notesAfterListening: optionalText
 });
 

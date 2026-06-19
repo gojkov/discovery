@@ -28,6 +28,7 @@ const trackUriFromLink = (link: string | null): string | null => {
 export default async function CandidatesPage() {
   const [candidates, reasons] = await Promise.all([
     db.candidate.findMany({
+      where: { status: { in: ["unreviewed", "sampled"] } },
       include: { reasons: { include: { reason: true } } },
       orderBy: [{ predictedScore: "desc" }, { createdAt: "desc" }]
     }),
@@ -124,7 +125,7 @@ export default async function CandidatesPage() {
                         {candidate.predictedScore}
                       </span>
                     </div>
-                    <p className="tabular text-center font-mono text-[10px] uppercase tracking-eyebrow text-subtle">
+                    <p className="tabular text-center font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-muted">
                       #{index + 1}
                     </p>
                   </div>
@@ -159,7 +160,7 @@ export default async function CandidatesPage() {
                       </summary>
                       <div className="mt-4 grid gap-4 md:grid-cols-2">
                         <div>
-                          <p className="font-mono text-xs font-medium uppercase tracking-eyebrow text-cyan/80">
+                          <p className="font-mono text-xs font-semibold uppercase tracking-[0.16em] text-cyan">
                             Evidence
                           </p>
                           <ul className="mt-2 space-y-2 text-sm text-muted">
@@ -185,18 +186,13 @@ export default async function CandidatesPage() {
                   </div>
                   <form action={reviewCandidate} className="space-y-3">
                     <input type="hidden" name="id" value={candidate.id} />
-                    <select className={inputClass} name="status" defaultValue={candidate.status}>
-                      <option value="unreviewed">Unreviewed</option>
-                      <option value="sampled">Sampled</option>
-                      <option value="promoted">Promoted</option>
-                      <option value="rejected">Rejected</option>
-                    </select>
                     <select
                       className={inputClass}
                       name="finalRating"
-                      defaultValue={candidate.finalRating ?? ""}
+                      defaultValue=""
+                      required
                     >
-                      <option value="">Final rating</option>
+                      <option value="" disabled>Choose final rating</option>
                       <option value="10">10 — obsession</option>
                       <option value="8">8 — good</option>
                       <option value="5">5 — neutral</option>
@@ -220,7 +216,7 @@ export default async function CandidatesPage() {
                       pendingLabel="Saving…"
                       className="w-full rounded-full bg-fg px-5 py-3 text-sm font-semibold text-ink hover:bg-cyan hover:shadow-glow"
                     >
-                      Save review
+                      Save, close &amp; re-rank
                     </SubmitButton>
                     {candidate.sourceLink && (
                       <a

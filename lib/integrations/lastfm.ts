@@ -44,7 +44,7 @@ async function call(
   }).toString();
 
   const res = await fetch(url, {
-    headers: { "User-Agent": "steve-discovery-engine" },
+    headers: { "User-Agent": "soundslikeme" },
     // Discovery is best-effort; never hang the request indefinitely.
     signal: AbortSignal.timeout(8000)
   });

@@ -34,7 +34,7 @@ export function CoverArt({
       aria-hidden
       style={box}
       className={clsx(
-        "grid shrink-0 place-items-center rounded-xl border border-white/[0.06] bg-white/[0.04] text-subtle",
+        "grid shrink-0 place-items-center rounded-xl border border-white/15 bg-white/[0.08] text-muted",
         className
       )}
     >

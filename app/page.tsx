@@ -54,12 +54,12 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-10">
-      <section className="relative grid overflow-hidden rounded-5xl border border-white/[0.08] bg-[linear-gradient(135deg,#0d0d16_0%,#08080d_56%,#120a16_100%)] px-7 py-12 shadow-card md:grid-cols-[1.4fr_0.6fr] md:px-12">
+      <section className="relative grid overflow-hidden rounded-5xl border border-white/[0.13] bg-[linear-gradient(135deg,#11131d_0%,#090a11_52%,#1b0d1b_100%)] px-7 py-12 shadow-card md:grid-cols-[1.35fr_0.65fr] md:px-12">
         <div className="pointer-events-none absolute -right-24 -top-40 size-96 rounded-full bg-pink/10 blur-[100px]" />
         <div className="pointer-events-none absolute -bottom-52 left-1/4 size-96 rounded-full bg-cyan/10 blur-[110px]" />
         <div className="relative">
           <Eyebrow>Local taste intelligence</Eyebrow>
-          <h1 className="max-w-3xl text-4xl font-medium tracking-tight text-fg md:text-[4.25rem] md:leading-[1.02]">
+          <h1 className="max-w-3xl text-4xl font-semibold text-fg md:text-[4.15rem] md:leading-[1.01]">
             Find the songs you&apos;ll{" "}
             <span className="font-semibold text-cyan">crave</span>, not merely
             tolerate.
@@ -83,15 +83,15 @@ export default async function DashboardPage() {
             </Link>
           </div>
         </div>
-        <div className="relative flex min-h-64 items-end justify-center">
-          <div className="relative grid size-56 place-items-center rounded-full border border-cyan/20 bg-cyan/[0.03]">
-            <div className="absolute inset-5 rounded-full border border-pink/30 shadow-[0_0_60px_rgba(255,92,192,0.12)]" />
-            <div className="absolute inset-12 rounded-full bg-cyan shadow-[0_0_80px_rgba(92,214,255,0.28)]" />
-            <div className="relative text-center text-ink">
-              <span className="tabular block text-6xl font-bold">
+        <div className="relative flex min-h-72 items-center justify-center">
+          <div className="relative grid size-64 place-items-center rounded-full border border-cyan/35 bg-[radial-gradient(circle,rgba(92,214,255,0.09),rgba(161,129,255,0.05)_55%,transparent_72%)] shadow-[0_0_80px_rgba(92,214,255,0.1)]">
+            <div className="absolute inset-5 rounded-full border border-pink/40" />
+            <div className="absolute inset-12 rounded-full border border-cyan/20 bg-raised shadow-[inset_0_0_42px_rgba(92,214,255,0.08)]" />
+            <div className="relative z-10 flex flex-col items-center text-center">
+              <span className="tabular block text-7xl font-bold leading-none text-cyan">
                 {profile.counts.tens}
               </span>
-              <span className="font-mono text-[10px] font-semibold uppercase tracking-eyebrow">
+              <span className="mt-4 rounded-full border border-white/20 bg-ink px-4 py-2 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-fg shadow-[0_8px_24px_rgba(0,0,0,0.45)]">
                 replay monsters
               </span>
             </div>

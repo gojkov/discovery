@@ -82,7 +82,7 @@ export default async function DiscoverPage() {
                 </li>
                 <li>3. Restart the dev server and reload this page.</li>
               </ol>
-              <p className="mt-3 text-sm text-subtle">
+              <p className="mt-3 text-sm text-muted">
                 Optional: add{" "}
                 <span className="font-mono">SPOTIFY_CLIENT_ID</span> /{" "}
                 <span className="font-mono">SPOTIFY_CLIENT_SECRET</span> for play
