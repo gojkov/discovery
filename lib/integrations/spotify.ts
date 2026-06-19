@@ -41,9 +41,23 @@ async function getToken(): Promise<string> {
   return cachedToken.value;
 }
 
-export type SpotifyMatch = { url: string; uri: string };
+export type SpotifyMatch = { url: string; uri: string; image: string | null };
 
-/** Resolve a track to its Spotify URL, or null if not found/unconfigured. */
+type SpotifyImage = { url: string };
+type SpotifyTrackObj = {
+  id?: string;
+  uri?: string;
+  external_urls?: { spotify?: string };
+  album?: { images?: SpotifyImage[] };
+};
+
+// Prefer the medium (~300px) image, falling back to the largest available.
+const pickImage = (t?: SpotifyTrackObj): string | null =>
+  t?.album?.images?.[1]?.url ?? t?.album?.images?.[0]?.url ?? null;
+
+const trackId = (uri: string) => uri.replace(/^spotify:track:/, "");
+
+/** Resolve a track to its Spotify URL + cover art, or null if not found. */
 export async function findTrackLink(
   title: string,
   artist: string
@@ -62,14 +76,53 @@ export async function findTrackLink(
       signal: AbortSignal.timeout(8000)
     });
     if (!res.ok) return null;
-    const json = (await res.json()) as {
-      tracks?: { items?: { uri: string; external_urls?: { spotify?: string } }[] };
-    };
+    const json = (await res.json()) as { tracks?: { items?: SpotifyTrackObj[] } };
     const hit = json.tracks?.items?.[0];
-    if (!hit?.external_urls?.spotify) return null;
-    return { url: hit.external_urls.spotify, uri: hit.uri };
+    if (!hit?.external_urls?.spotify || !hit.uri) return null;
+    return { url: hit.external_urls.spotify, uri: hit.uri, image: pickImage(hit) };
   } catch {
     // Link enrichment is optional; never fail discovery over it.
     return null;
   }
+}
+
+/**
+ * Resolve cover art for known track URIs → a uri → image-URL map.
+ *
+ * Uses the single-track endpoint with bounded concurrency: Spotify's batch
+ * `/v1/tracks?ids=` is 403 for newly-created apps (Nov 2024 restrictions),
+ * but `/v1/tracks/{id}` still works. Missing/unconfigured entries are absent.
+ */
+export async function fetchTrackImages(
+  uris: string[]
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (!spotifyConfigured() || uris.length === 0) return out;
+  try {
+    const token = await getToken();
+    const ids = [...new Set(uris.map(trackId))];
+    const CONCURRENCY = 8;
+    for (let i = 0; i < ids.length; i += CONCURRENCY) {
+      const results = await Promise.all(
+        ids.slice(i, i + CONCURRENCY).map(async (id) => {
+          try {
+            const res = await fetch(`https://api.spotify.com/v1/tracks/${id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+              signal: AbortSignal.timeout(8000)
+            });
+            if (!res.ok) return null;
+            const t = (await res.json()) as SpotifyTrackObj;
+            const img = pickImage(t);
+            return img && t.id ? ([`spotify:track:${t.id}`, img] as const) : null;
+          } catch {
+            return null;
+          }
+        })
+      );
+      for (const r of results) if (r) out.set(r[0], r[1]);
+    }
+  } catch {
+    // Cover art is decorative; never throw.
+  }
+  return out;
 }

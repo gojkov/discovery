@@ -4,8 +4,10 @@ import {
   reviewCandidate
 } from "@/app/actions";
 import { Badge, Card, Eyebrow, inputClass } from "@/components/ui";
+import { CoverArt } from "@/components/cover-art";
 import { SubmitButton } from "@/components/submit-button";
 import { db } from "@/lib/db";
+import { fetchTrackImages } from "@/lib/integrations/spotify";
 import { parseStringList } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -17,10 +19,25 @@ function scoreTone(score: number): "good" | "violet" | "warn" | "bad" {
   return "bad";
 }
 
+const trackUriFromLink = (link: string | null): string | null => {
+  const m = link?.match(/track\/([A-Za-z0-9]+)/);
+  return m ? `spotify:track:${m[1]}` : null;
+};
+
 export default async function CandidatesPage() {
   const candidates = await db.candidate.findMany({
     orderBy: [{ predictedScore: "desc" }, { createdAt: "desc" }]
   });
+
+  // Backfill cover art for candidates that predate the stored image field,
+  // by resolving the Spotify track id out of their source link.
+  const missing = candidates
+    .filter((c) => !c.image)
+    .map((c) => trackUriFromLink(c.sourceLink))
+    .filter((u): u is string => Boolean(u));
+  const fetched = await fetchTrackImages(missing);
+  const coverFor = (c: (typeof candidates)[number]) =>
+    c.image ?? fetched.get(trackUriFromLink(c.sourceLink) ?? "") ?? null;
 
   return (
     <div className="space-y-8">
@@ -92,13 +109,18 @@ export default async function CandidatesPage() {
             return (
               <Card key={candidate.id}>
                 <div className="grid gap-6 lg:grid-cols-[5rem_1fr_13rem]">
-                  <div>
+                  <div className="space-y-2">
+                    <CoverArt
+                      src={coverFor(candidate)}
+                      alt={`${candidate.title} cover`}
+                      size={64}
+                    />
                     <div className="grid size-16 place-items-center rounded-2xl border border-cyan/30 bg-cyan/10 text-cyan shadow-glow">
                       <span className="tabular text-2xl font-semibold">
                         {candidate.predictedScore}
                       </span>
                     </div>
-                    <p className="tabular mt-2 text-center font-mono text-[10px] uppercase tracking-eyebrow text-subtle">
+                    <p className="tabular text-center font-mono text-[10px] uppercase tracking-eyebrow text-subtle">
                       #{index + 1}
                     </p>
                   </div>

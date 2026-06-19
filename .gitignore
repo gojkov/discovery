@@ -8,3 +8,4 @@ dev.db-journal
 coverage
 *.log
 *.tsbuildinfo
+spotify-export/

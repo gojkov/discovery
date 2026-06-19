@@ -8,21 +8,52 @@ datasource db {
 }
 
 model Track {
-  id        String   @id @default(cuid())
-  title     String
-  artist    String
-  album     String?
-  year      Int?
-  notes     String   @default("")
-  source    String   @default("manual")
-  tags      String   @default("[]")
-  rating    Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  title      String
+  artist     String
+  album      String?
+  year       Int?
+  notes      String   @default("")
+  source     String   @default("manual")
+  tags       String   @default("[]")
+  rating     Int
+  spotifyUri String?  @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@unique([title, artist])
   @@index([artist])
   @@index([rating])
+}
+
+// Behavioral aggregate per track, mined from the Spotify GDPR export.
+// Stores only track-level stats — no IPs or other PII from the raw export.
+model StreamStat {
+  id            String    @id @default(cuid())
+  spotifyUri    String    @unique
+  title         String
+  artist        String
+  album         String?
+  plays         Int       @default(0)
+  completions   Int       @default(0) // reason_end = trackdone
+  skips         Int       @default(0) // reason_end = fwdbtn or skipped
+  backbtns      Int       @default(0) // reason_end = backbtn (replay intent)
+  msPlayed      Int       @default(0)
+  distinctDays  Int       @default(0)
+  firstPlayed   DateTime?
+  lastPlayed    DateTime?
+  saved         Boolean   @default(false) // in YourLibrary.tracks
+  banned        Boolean   @default(false) // in YourLibrary.bannedTracks
+  derivedRating Int? // 10/8/5/1 from behavior, null when inconclusive
+  craving       Int       @default(0) // 0-100 continuous behavioral score
+  reviewed      Boolean   @default(false) // promoted/dismissed in review queue
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([craving])
+  @@index([derivedRating])
+  @@index([reviewed])
+  @@index([artist])
 }
 
 model Candidate {
@@ -30,6 +61,7 @@ model Candidate {
   title             String
   artist            String
   sourceLink        String?
+  image             String?
   whySuggested      String   @default("")
   tags              String   @default("[]")
   predictedScore    Int

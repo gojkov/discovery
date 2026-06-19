@@ -67,6 +67,16 @@ export const reviewSchema = z.object({
   notesAfterListening: optionalText
 });
 
+export const promoteStatSchema = z.object({
+  spotifyUri: requiredText,
+  rating: z.preprocess(
+    (v) => Number(trimmed(v)),
+    z.union([z.literal(10), z.literal(8), z.literal(5), z.literal(1)])
+  )
+});
+
+export const dismissStatSchema = z.object({ spotifyUri: requiredText });
+
 /** Parse FormData against a schema, throwing a readable error on failure. */
 export function parseForm<S extends z.ZodType>(
   schema: S,

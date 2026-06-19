@@ -1,7 +1,9 @@
 import { addTrack, rateTrack, updateTrack } from "@/app/actions";
 import { Card, Eyebrow, Badge, buttonClass, inputClass } from "@/components/ui";
+import { CoverArt } from "@/components/cover-art";
 import { SubmitButton } from "@/components/submit-button";
 import { db } from "@/lib/db";
+import { fetchTrackImages } from "@/lib/integrations/spotify";
 import { parseStringList } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +12,10 @@ export default async function TracksPage() {
   const tracks = await db.track.findMany({
     orderBy: [{ rating: "desc" }, { artist: "asc" }, { title: "asc" }]
   });
+  // Cover art for tracks linked to a Spotify URI (promoted from history).
+  const images = await fetchTrackImages(
+    tracks.map((t) => t.spotifyUri).filter((u): u is string => Boolean(u))
+  );
 
   return (
     <div className="space-y-8">
@@ -80,19 +86,26 @@ export default async function TracksPage() {
             return (
               <article key={track.id} className="px-5 py-5 sm:px-7">
                 <div className="grid gap-5 lg:grid-cols-[minmax(13rem,0.8fr)_minmax(18rem,1.2fr)_auto] lg:items-start">
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <Badge tone={tone}>
-                        <span className="tabular">{track.rating}/10</span>
-                      </Badge>
-                      <span className="font-mono text-[10px] uppercase tracking-eyebrow text-subtle">
-                        {track.source}
-                      </span>
+                  <div className="flex items-start gap-3">
+                    <CoverArt
+                      src={track.spotifyUri ? images.get(track.spotifyUri) : null}
+                      alt={`${track.title} cover`}
+                      size={52}
+                    />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-3">
+                        <Badge tone={tone}>
+                          <span className="tabular">{track.rating}/10</span>
+                        </Badge>
+                        <span className="font-mono text-[10px] uppercase tracking-eyebrow text-subtle">
+                          {track.source}
+                        </span>
+                      </div>
+                      <h3 className="mt-3 text-lg font-semibold tracking-tight text-fg">
+                        {track.title}
+                      </h3>
+                      <p className="text-sm text-muted">{track.artist}</p>
                     </div>
-                    <h3 className="mt-3 text-lg font-semibold tracking-tight text-fg">
-                      {track.title}
-                    </h3>
-                    <p className="text-sm text-muted">{track.artist}</p>
                   </div>
                   <div>
                     {track.notes && (

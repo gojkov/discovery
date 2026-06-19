@@ -9,6 +9,7 @@ const links = [
   ["/", "Dashboard"],
   ["/tracks", "Tracks"],
   ["/candidates", "Candidates"],
+  ["/review", "Review"],
   ["/discover", "Discover"],
   ["/import/spotify-csv", "Import"],
   ["/exports", "Exports"]

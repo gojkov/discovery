@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { buildModel, scoreWithModel } from "@/lib/scoring";
-import { normalize, parseTags } from "@/lib/scoring/text";
+import { loadKnowledge } from "@/lib/scoring/knowledge";
+import { normalize } from "@/lib/scoring/text";
 import {
   artistTopTracks,
   lastfmConfigured,
@@ -8,7 +9,6 @@ import {
   type SimilarTrack
 } from "@/lib/integrations/lastfm";
 import { findTrackLink } from "@/lib/integrations/spotify";
-import type { TrackKnowledge } from "@/lib/types";
 
 const dedupeKey = (title: string, artist: string) =>
   `${normalize(title)}|||${normalize(artist)}`;
@@ -36,15 +36,37 @@ export async function discoverCandidates(opts?: {
   const seedLimit = opts?.seedLimit ?? 8;
   const insertLimit = opts?.insertLimit ?? 25;
 
-  const [tracks, candidates] = await Promise.all([
-    db.track.findMany(),
-    db.candidate.findMany()
+  const [tracks, candidates, behavioralSeeds, streamed] = await Promise.all([
+    db.track.findMany({ where: { rating: 10 } }),
+    db.candidate.findMany({ select: { title: true, artist: true } }),
+    // Top behavioral cravings make richer seeds than the manual 10s alone.
+    db.streamStat.findMany({
+      orderBy: { craving: "desc" },
+      take: seedLimit * 4,
+      select: { title: true, artist: true }
+    }),
+    // Everything you've ever streamed — so discovery never resurfaces it.
+    db.streamStat.findMany({ select: { title: true, artist: true } })
   ]);
+
+  // Exclude manual library, existing candidates, AND all streamed history.
   const known = new Set(
-    [...tracks, ...candidates].map((t) => dedupeKey(t.title, t.artist))
+    [...tracks, ...candidates, ...streamed].map((t) =>
+      dedupeKey(t.title, t.artist)
+    )
   );
 
-  const seeds = tracks.filter((t) => t.rating === 10).slice(0, seedLimit);
+  // Seed from manual 10s first, then top behavioral cravings, deduped.
+  const seedKeys = new Set<string>();
+  const seeds: { title: string; artist: string }[] = [];
+  for (const t of [...tracks, ...behavioralSeeds]) {
+    const k = dedupeKey(t.title, t.artist);
+    if (seedKeys.has(k)) continue;
+    seedKeys.add(k);
+    seeds.push({ title: t.title, artist: t.artist });
+    if (seeds.length >= seedLimit) break;
+  }
+
   const pool = new Map<string, SimilarTrack>();
   for (const seed of seeds) {
     try {
@@ -61,14 +83,7 @@ export async function discoverCandidates(opts?: {
     }
   }
 
-  const knowledge: TrackKnowledge[] = tracks.map((t) => ({
-    title: t.title,
-    artist: t.artist,
-    rating: t.rating,
-    notes: t.notes,
-    tags: parseTags(t.tags)
-  }));
-  const model = buildModel(knowledge);
+  const model = buildModel(await loadKnowledge());
 
   const scored = [...pool.values()]
     .map((s) => {
@@ -87,6 +102,7 @@ export async function discoverCandidates(opts?: {
         title: item.title,
         artist: item.artist,
         sourceLink: link?.url ?? null,
+        image: link?.image ?? null,
         whySuggested: item.whySuggested,
         tags: "[]",
         predictedScore: item.result.score,

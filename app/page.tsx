@@ -14,10 +14,16 @@ import { Card, Eyebrow } from "@/components/ui";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [tracks, candidates] = await Promise.all([
-    db.track.findMany(),
-    db.candidate.findMany()
-  ]);
+  const [tracks, candidates, streamCount, behavioralLoves, pendingReview] =
+    await Promise.all([
+      db.track.findMany(),
+      db.candidate.findMany(),
+      db.streamStat.count(),
+      db.streamStat.count({ where: { derivedRating: 10 } }),
+      db.streamStat.count({
+        where: { reviewed: false, derivedRating: { in: [10, 1] } }
+      })
+    ]);
   const profile = buildTasteProfile(
     tracks.map((track) => ({ ...track, tags: track.tags }))
   );
@@ -80,6 +86,34 @@ export default async function DashboardPage() {
           </div>
         </div>
       </section>
+
+      {streamCount > 0 && (
+        <Link href="/review" className="block">
+          <Card className="!border-violet/25 !bg-[linear-gradient(145deg,rgba(161,129,255,0.12),rgba(92,214,255,0.05))] transition hover:!border-violet/40">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <Eyebrow className="!text-violet">Behavioral intelligence</Eyebrow>
+                <p className="text-base text-fg">
+                  Trained on{" "}
+                  <span className="tabular font-semibold">
+                    {streamCount.toLocaleString()}
+                  </span>{" "}
+                  tracks from your real listening —{" "}
+                  <span className="tabular font-semibold text-lime">
+                    {behavioralLoves.toLocaleString()}
+                  </span>{" "}
+                  behavioral 10s detected.
+                </p>
+              </div>
+              {pendingReview > 0 && (
+                <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-violet/20 px-4 py-2 text-sm font-semibold text-violet">
+                  <span className="tabular">{pendingReview}</span> to review →
+                </span>
+              )}
+            </div>
+          </Card>
+        </Link>
+      )}
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {metrics.map(([label, value, Icon, color]) => (

@@ -5,37 +5,24 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { discoverCandidates } from "@/lib/discover";
 import { buildModel, scoreWithModel } from "@/lib/scoring";
+import { loadKnowledge } from "@/lib/scoring/knowledge";
 import { normalizeTags, parseStringList } from "@/lib/types";
 import {
   candidateSchema,
+  dismissStatSchema,
   parseForm,
+  promoteStatSchema,
   rateSchema,
   reviewSchema,
   trackSchema,
   updateTrackSchema
 } from "@/lib/validation";
-import type { TrackKnowledge } from "@/lib/types";
 
 const revalidateAll = () => {
   revalidatePath("/");
   revalidatePath("/tracks");
   revalidatePath("/candidates");
 };
-
-const toKnowledge = (tracks: {
-  title: string;
-  artist: string;
-  rating: number;
-  notes: string;
-  tags: string;
-}[]): TrackKnowledge[] =>
-  tracks.map((track) => ({
-    title: track.title,
-    artist: track.artist,
-    rating: track.rating,
-    notes: track.notes,
-    tags: parseStringList(track.tags)
-  }));
 
 export async function addTrack(formData: FormData) {
   const data = parseForm(trackSchema, formData);
@@ -87,7 +74,6 @@ export async function rateTrack(formData: FormData) {
 export async function addCandidate(formData: FormData) {
   const data = parseForm(candidateSchema, formData);
   const tags = normalizeTags(formData.get("tags"));
-  const tracks = await db.track.findMany();
   const result = scoreWithModel(
     {
       title: data.title,
@@ -95,7 +81,7 @@ export async function addCandidate(formData: FormData) {
       whySuggested: data.whySuggested,
       tags
     },
-    buildModel(toKnowledge(tracks))
+    buildModel(await loadKnowledge())
   );
 
   const fields = {
@@ -156,12 +142,12 @@ export async function reviewCandidate(formData: FormData) {
 }
 
 export async function rescoreAllCandidates() {
-  const [tracks, candidates] = await Promise.all([
-    db.track.findMany(),
+  const [knowledge, candidates] = await Promise.all([
+    loadKnowledge(),
     db.candidate.findMany()
   ]);
   // Build the learned model once, then score every candidate against it.
-  const model = buildModel(toKnowledge(tracks));
+  const model = buildModel(knowledge);
 
   await Promise.all(
     candidates.map((candidate) => {
@@ -196,4 +182,45 @@ export async function runDiscovery() {
   revalidatePath("/");
   revalidatePath("/candidates");
   redirect("/candidates");
+}
+
+export async function promoteStreamStat(formData: FormData) {
+  const data = parseForm(promoteStatSchema, formData);
+  const stat = await db.streamStat.findUnique({
+    where: { spotifyUri: data.spotifyUri }
+  });
+  if (!stat) return;
+
+  // Promote into the authoritative manual library.
+  await db.track.upsert({
+    where: { title_artist: { title: stat.title, artist: stat.artist } },
+    create: {
+      title: stat.title,
+      artist: stat.artist,
+      album: stat.album,
+      rating: data.rating,
+      source: "spotify-behavior",
+      tags: "[]",
+      notes: "",
+      spotifyUri: stat.spotifyUri
+    },
+    update: { rating: data.rating, spotifyUri: stat.spotifyUri }
+  });
+  await db.streamStat.update({
+    where: { spotifyUri: data.spotifyUri },
+    data: { reviewed: true }
+  });
+
+  revalidatePath("/");
+  revalidatePath("/tracks");
+  revalidatePath("/review");
+}
+
+export async function dismissStreamStat(formData: FormData) {
+  const data = parseForm(dismissStatSchema, formData);
+  await db.streamStat.update({
+    where: { spotifyUri: data.spotifyUri },
+    data: { reviewed: true }
+  });
+  revalidatePath("/review");
 }

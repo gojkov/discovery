@@ -69,6 +69,27 @@ Run the unit tests with:
 npm test
 ```
 
+## Importing your Spotify history (behavioral signal)
+
+Request your data from Spotify (Privacy Settings → "Extended streaming history"),
+unzip both archives into a local `spotify-export/` folder (gitignored), then:
+
+```bash
+npm run import:spotify -- spotify-export
+```
+
+This aggregates every play/skip/replay into a `StreamStat` per track, derives
+ratings for confident cases (loved replay monsters, hard skips), and computes a
+0–100 craving score. The scoring engine then trains on this decade of real
+listening alongside your manual library (manual ratings always win). Confirm or
+dismiss the auto-detected loves/rejects on the **Review** page. Only track-level
+aggregates are stored — no IPs or other PII from the raw export, which stays
+gitignored and is never committed.
+
+> The export is **behavioral, not acoustic** — it has no audio features. It
+> supercharges the preference/craving model; true sound analysis would need a
+> separate audio provider.
+
 ## Discovery integration
 
 Discovery is live once you add a free Last.fm key. Copy `.env.example` to
