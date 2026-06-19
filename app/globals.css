@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #f6f7fb;
+  background: #030305;
+  font-synthesis: none;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 82% -8%, rgba(255, 60, 172, 0.16), transparent 30rem),
+    radial-gradient(circle at -6% 34%, rgba(70, 232, 255, 0.12), transparent 34rem),
+    linear-gradient(180deg, #050508 0%, #020203 100%);
+  color: #f6f7fb;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: #46e8ff;
+  color: #030305;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 2px solid #46e8ff;
+  outline-offset: 3px;
+}
+
+select option {
+  background: #0d0d14;
+  color: #f6f7fb;
+}
+
+details > summary {
+  list-style: none;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}

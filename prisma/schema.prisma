@@ -1,0 +1,49 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Track {
+  id        String   @id @default(cuid())
+  title     String
+  artist    String
+  album     String?
+  year      Int?
+  notes     String   @default("")
+  source    String   @default("manual")
+  tags      String   @default("[]")
+  rating    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([title, artist])
+  @@index([artist])
+  @@index([rating])
+}
+
+model Candidate {
+  id                String   @id @default(cuid())
+  title             String
+  artist            String
+  sourceLink        String?
+  whySuggested      String   @default("")
+  tags              String   @default("[]")
+  predictedScore    Int
+  confidence        String
+  explanation       String   @default("[]")
+  risks             String   @default("[]")
+  suggestedAction   String
+  status            String   @default("unreviewed")
+  finalRating       Int?
+  notesAfterListening String @default("")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([title, artist])
+  @@index([status])
+  @@index([predictedScore])
+}

@@ -1,0 +1,10 @@
+node_modules
+.pnpm-store
+.next
+.next-build
+.env
+dev.db
+dev.db-journal
+coverage
+*.log
+*.tsbuildinfo
