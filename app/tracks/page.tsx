@@ -1,5 +1,6 @@
 import { addTrack, rateTrack, updateTrack } from "@/app/actions";
 import { Card, Eyebrow, Badge, buttonClass, inputClass } from "@/components/ui";
+import { SubmitButton } from "@/components/submit-button";
 import { db } from "@/lib/db";
 import { parseStringList } from "@/lib/types";
 
@@ -14,14 +15,16 @@ export default async function TracksPage() {
     <div className="space-y-8">
       <div>
         <Eyebrow>Known taste</Eyebrow>
-        <h1 className="text-4xl font-black tracking-[-0.04em]">Track library</h1>
-        <p className="mt-3 max-w-2xl text-cream/50">
+        <h1 className="text-4xl font-medium tracking-tight text-fg">
+          Track library
+        </h1>
+        <p className="mt-3 max-w-2xl text-muted">
           Every decisive love and rejection makes future rankings less naive.
         </p>
       </div>
 
       <Card>
-        <h2 className="text-xl font-black">Add or update a track</h2>
+        <h2 className="text-xl font-semibold text-fg">Add or update a track</h2>
         <form action={addTrack} className="mt-5 grid gap-4 md:grid-cols-2">
           <input className={inputClass} name="title" placeholder="Track title" required />
           <input className={inputClass} name="artist" placeholder="Artist" required />
@@ -50,17 +53,21 @@ export default async function TracksPage() {
             placeholder="What landed or failed?"
           />
           <div className="md:col-span-2">
-            <button className={buttonClass}>Save track</button>
+            <SubmitButton className={buttonClass} pendingLabel="Saving…">
+              Save track
+            </SubmitButton>
           </div>
         </form>
       </Card>
 
-      <div className="overflow-hidden rounded-[1.75rem] border border-white/[0.08] bg-panel/90 shadow-card backdrop-blur-xl">
-        <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-5 sm:px-6">
-          <h2 className="font-black">{tracks.length} known tracks</h2>
-          <span className="text-xs font-bold text-cream/35">Tap any grade to re-rate</span>
+      <div className="overflow-hidden rounded-4xl border border-white/[0.08] bg-panel/80 shadow-card backdrop-blur-xl">
+        <div className="flex items-center justify-between border-b border-white/[0.08] px-5 py-5 sm:px-7">
+          <h2 className="font-semibold text-fg">
+            <span className="tabular">{tracks.length}</span> known tracks
+          </h2>
+          <span className="text-xs text-subtle">Tap any grade to re-rate</span>
         </div>
-        <div className="divide-y divide-white/[0.07]">
+        <div className="divide-y divide-white/[0.06]">
           {tracks.map((track) => {
             const tone =
               track.rating === 10
@@ -71,20 +78,28 @@ export default async function TracksPage() {
                     ? "violet"
                     : "neutral";
             return (
-              <article key={track.id} className="px-5 py-5 sm:px-6">
+              <article key={track.id} className="px-5 py-5 sm:px-7">
                 <div className="grid gap-5 lg:grid-cols-[minmax(13rem,0.8fr)_minmax(18rem,1.2fr)_auto] lg:items-start">
                   <div>
                     <div className="flex items-center gap-3">
-                      <Badge tone={tone}>{track.rating}/10</Badge>
-                      <span className="text-[10px] font-black uppercase tracking-[0.18em] text-cream/25">
+                      <Badge tone={tone}>
+                        <span className="tabular">{track.rating}/10</span>
+                      </Badge>
+                      <span className="font-mono text-[10px] uppercase tracking-eyebrow text-subtle">
                         {track.source}
                       </span>
                     </div>
-                    <h3 className="mt-3 text-lg font-black tracking-tight">{track.title}</h3>
-                    <p className="text-sm text-cream/45">{track.artist}</p>
+                    <h3 className="mt-3 text-lg font-semibold tracking-tight text-fg">
+                      {track.title}
+                    </h3>
+                    <p className="text-sm text-muted">{track.artist}</p>
                   </div>
                   <div>
-                    {track.notes && <p className="text-sm leading-6 text-cream/55">{track.notes}</p>}
+                    {track.notes && (
+                      <p className="text-sm leading-6 text-muted">
+                        {track.notes}
+                      </p>
+                    )}
                     <div className="mt-3 flex flex-wrap gap-1.5">
                       {parseStringList(track.tags).map((tag) => (
                         <Badge key={tag}>{tag}</Badge>
@@ -99,10 +114,11 @@ export default async function TracksPage() {
                         name="rating"
                         value={rating}
                         aria-label={`Rate ${track.title} ${rating} out of 10`}
-                        className={`grid size-10 place-items-center rounded-full border text-xs font-black transition ${
+                        aria-pressed={track.rating === rating}
+                        className={`tabular grid size-10 place-items-center rounded-2xl border text-xs font-semibold transition ${
                           track.rating === rating
-                            ? "border-cyan bg-cyan text-ink shadow-[0_0_22px_rgba(70,232,255,0.3)]"
-                            : "border-white/10 bg-white/[0.04] text-cream/45 hover:border-pink/60 hover:text-pink"
+                            ? "border-cyan bg-cyan text-ink shadow-glow"
+                            : "border-white/10 bg-white/[0.04] text-muted hover:border-pink/60 hover:text-pink"
                         }`}
                       >
                         {rating}
@@ -111,7 +127,7 @@ export default async function TracksPage() {
                   </form>
                 </div>
                 <details className="mt-4 border-t border-white/[0.06] pt-4">
-                  <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.16em] text-cyan/70 transition hover:text-cyan">
+                  <summary className="cursor-pointer font-mono text-xs font-medium uppercase tracking-eyebrow text-cyan/80 transition hover:text-cyan">
                     Edit track details
                   </summary>
                   <form action={updateTrack} className="mt-4 grid gap-3 md:grid-cols-2">
@@ -146,7 +162,9 @@ export default async function TracksPage() {
                       placeholder="What landed or failed?"
                     />
                     <div className="md:col-span-2">
-                      <button className={buttonClass}>Update track</button>
+                      <SubmitButton className={buttonClass} pendingLabel="Updating…">
+                        Update track
+                      </SubmitButton>
                     </div>
                   </form>
                 </details>

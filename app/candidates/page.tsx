@@ -3,7 +3,8 @@ import {
   rescoreAllCandidates,
   reviewCandidate
 } from "@/app/actions";
-import { Badge, buttonClass, Card, Eyebrow, inputClass } from "@/components/ui";
+import { Badge, Card, Eyebrow, inputClass } from "@/components/ui";
+import { SubmitButton } from "@/components/submit-button";
 import { db } from "@/lib/db";
 import { parseStringList } from "@/lib/types";
 
@@ -26,21 +27,26 @@ export default async function CandidatesPage() {
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <Eyebrow>Listening queue</Eyebrow>
-          <h1 className="text-4xl font-black tracking-[-0.04em]">Candidate lab</h1>
-          <p className="mt-3 max-w-2xl text-cream/50">
+          <h1 className="text-4xl font-medium tracking-tight text-fg">
+            Candidate lab
+          </h1>
+          <p className="mt-3 max-w-2xl text-muted">
             Rank first. Listen outside the app. Then teach the engine what
             actually created craving.
           </p>
         </div>
         <form action={rescoreAllCandidates}>
-          <button className="rounded-full border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-black transition hover:border-cyan/50 hover:text-cyan">
+          <SubmitButton
+            pendingLabel="Re-scoring…"
+            className="rounded-full border border-white/10 bg-white/[0.03] px-5 py-3 text-sm font-medium text-fg hover:border-cyan/50 hover:text-cyan"
+          >
             Re-score all with latest learnings
-          </button>
+          </SubmitButton>
         </form>
       </div>
 
-      <Card className="!border-cyan/15 !bg-[linear-gradient(145deg,rgba(70,232,255,0.07),rgba(139,92,255,0.05))] text-cream">
-        <h2 className="text-xl font-black">Add a song to test</h2>
+      <Card className="!border-cyan/15 !bg-[linear-gradient(145deg,rgba(92,214,255,0.07),rgba(161,129,255,0.05))]">
+        <h2 className="text-xl font-semibold text-fg">Add a song to test</h2>
         <form action={addCandidate} className="mt-5 grid gap-4 md:grid-cols-2">
           <input className={inputClass} name="title" placeholder="Track title" required />
           <input className={inputClass} name="artist" placeholder="Artist" required />
@@ -61,17 +67,20 @@ export default async function CandidatesPage() {
             placeholder="Why was this suggested? Include any song-level clues."
           />
           <div className="md:col-span-2">
-            <button className="rounded-full bg-cyan px-5 py-3 text-sm font-black text-ink shadow-[0_0_28px_rgba(70,232,255,0.18)]">
+            <SubmitButton
+              pendingLabel="Scoring…"
+              className="rounded-full bg-cyan px-5 py-3 text-sm font-semibold text-ink shadow-glow"
+            >
               Score candidate
-            </button>
+            </SubmitButton>
           </div>
         </form>
       </Card>
 
       {candidates.length === 0 ? (
         <Card className="py-16 text-center">
-          <p className="text-xl font-black">The queue is empty.</p>
-          <p className="mt-2 text-sm text-cream/45">
+          <p className="text-xl font-semibold text-fg">The queue is empty.</p>
+          <p className="mt-2 text-sm text-muted">
             Add your first candidate above; no Spotify export required.
           </p>
         </Card>
@@ -84,24 +93,30 @@ export default async function CandidatesPage() {
               <Card key={candidate.id}>
                 <div className="grid gap-6 lg:grid-cols-[5rem_1fr_13rem]">
                   <div>
-                    <div className="grid size-16 place-items-center rounded-full border border-cyan/30 bg-cyan/10 text-2xl font-black text-cyan shadow-[0_0_30px_rgba(70,232,255,0.12)]">
-                      {candidate.predictedScore}
+                    <div className="grid size-16 place-items-center rounded-2xl border border-cyan/30 bg-cyan/10 text-cyan shadow-glow">
+                      <span className="tabular text-2xl font-semibold">
+                        {candidate.predictedScore}
+                      </span>
                     </div>
-                    <p className="mt-2 text-center text-[10px] font-black uppercase tracking-widest text-cream/25">
+                    <p className="tabular mt-2 text-center font-mono text-[10px] uppercase tracking-eyebrow text-subtle">
                       #{index + 1}
                     </p>
                   </div>
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="text-xl font-black">{candidate.title}</h2>
+                      <h2 className="text-xl font-semibold text-fg">
+                        {candidate.title}
+                      </h2>
                       <Badge tone={scoreTone(candidate.predictedScore)}>
                         {candidate.suggestedAction}
                       </Badge>
                       <Badge>{candidate.confidence} confidence</Badge>
                     </div>
-                    <p className="mt-1 font-semibold text-cream/40">{candidate.artist}</p>
+                    <p className="mt-1 text-sm font-medium text-muted">
+                      {candidate.artist}
+                    </p>
                     {candidate.whySuggested && (
-                      <p className="mt-4 text-sm leading-6 text-cream/55">
+                      <p className="mt-4 text-sm leading-6 text-muted">
                         {candidate.whySuggested}
                       </p>
                     )}
@@ -111,25 +126,25 @@ export default async function CandidatesPage() {
                       ))}
                     </div>
                     <details className="mt-5 rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4">
-                      <summary className="cursor-pointer text-sm font-black">
+                      <summary className="cursor-pointer text-sm font-semibold text-fg">
                         Why this score
                       </summary>
                       <div className="mt-4 grid gap-4 md:grid-cols-2">
                         <div>
-                          <p className="text-xs font-black uppercase tracking-wider text-cyan/65">
+                          <p className="font-mono text-xs font-medium uppercase tracking-eyebrow text-cyan/80">
                             Evidence
                           </p>
-                          <ul className="mt-2 space-y-2 text-sm text-cream/50">
+                          <ul className="mt-2 space-y-2 text-sm text-muted">
                             {explanations.map((item) => (
                               <li key={item}>+ {item}</li>
                             ))}
                           </ul>
                         </div>
                         <div>
-                          <p className="text-xs font-black uppercase tracking-wider text-coral">
+                          <p className="font-mono text-xs font-medium uppercase tracking-eyebrow text-coral">
                             Risks
                           </p>
-                          <ul className="mt-2 space-y-2 text-sm text-cream/50">
+                          <ul className="mt-2 space-y-2 text-sm text-muted">
                             {risks.length ? (
                               risks.map((item) => <li key={item}>– {item}</li>)
                             ) : (
@@ -165,13 +180,18 @@ export default async function CandidatesPage() {
                       defaultValue={candidate.notesAfterListening}
                       placeholder="What landed or failed?"
                     />
-                    <button className={`${buttonClass} w-full`}>Save review</button>
+                    <SubmitButton
+                      pendingLabel="Saving…"
+                      className="w-full rounded-full bg-fg px-5 py-3 text-sm font-semibold text-ink hover:bg-cyan hover:shadow-glow"
+                    >
+                      Save review
+                    </SubmitButton>
                     {candidate.sourceLink && (
                       <a
                         href={candidate.sourceLink}
                         target="_blank"
                         rel="noreferrer"
-                        className="block text-center text-xs font-black text-cyan underline"
+                        className="block text-center text-xs font-medium text-cyan underline"
                       >
                         Open source link
                       </a>

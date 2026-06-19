@@ -63,3 +63,66 @@ describe("scoreCandidate", () => {
     expect(signaled.score).toBeGreaterThan(plain.score + 15);
   });
 });
+
+describe("scoreCandidate — learning from history", () => {
+  it("reinforces a phrase that co-occurs with proven 10s", () => {
+    const noEvidence: TrackKnowledge[] = [
+      { title: "x", artist: "Zed", rating: 10 }
+    ];
+    const withEvidence: TrackKnowledge[] = [
+      { title: "a", artist: "Zed", rating: 10, tags: ["strong chorus"] },
+      { title: "b", artist: "Yan", rating: 10, notes: "big chorus all the way" }
+    ];
+    const cand = { title: "New", artist: "Unknown", tags: ["strong chorus"] };
+    expect(scoreCandidate(cand, withEvidence).score).toBeGreaterThan(
+      scoreCandidate(cand, noEvidence).score
+    );
+  });
+
+  it("deepens a penalty when a phrase co-occurs with skips", () => {
+    const regret: TrackKnowledge[] = [
+      { title: "r1", artist: "Q", rating: 1, notes: "pleasant but no craving" },
+      { title: "r2", artist: "W", rating: 1, tags: ["good but no craving"] }
+    ];
+    const cand = {
+      title: "c",
+      artist: "Unknown",
+      whySuggested: "pleasant, no craving"
+    };
+    expect(scoreCandidate(cand, regret).score).toBeLessThan(
+      scoreCandidate(cand, []).score
+    );
+  });
+
+  it("rewards a clean artist over a mixed one via learned hit-rate", () => {
+    const clean: TrackKnowledge[] = Array.from({ length: 3 }, (_, i) => ({
+      title: `c${i}`,
+      artist: "Pure",
+      rating: 10
+    }));
+    const mixed: TrackKnowledge[] = [
+      ...Array.from({ length: 3 }, (_, i) => ({
+        title: `m${i}`,
+        artist: "Mix",
+        rating: 10 as const
+      })),
+      { title: "m4", artist: "Mix", rating: 1 },
+      { title: "m5", artist: "Mix", rating: 1 }
+    ];
+    expect(scoreCandidate({ title: "n", artist: "Pure" }, clean).score).toBeGreaterThan(
+      scoreCandidate({ title: "n", artist: "Mix" }, mixed).score
+    );
+  });
+
+  it("still scores from static rules on a cold start (no history)", () => {
+    const result = scoreCandidate(
+      {
+        title: "x",
+        artist: "Nobody",
+        whySuggested: "strong chorus, immediate attention, replay craving"
+      },
+      []
+    );
+    expect(result.score).toBeGreaterThan(60);
+  });
+});

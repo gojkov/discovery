@@ -3,126 +3,116 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import { scoreCandidate } from "@/lib/scoring";
-import { normalizeTags, type Rating } from "@/lib/types";
+import { discoverCandidates } from "@/lib/discover";
+import { buildModel, scoreWithModel } from "@/lib/scoring";
+import { normalizeTags, parseStringList } from "@/lib/types";
+import {
+  candidateSchema,
+  parseForm,
+  rateSchema,
+  reviewSchema,
+  trackSchema,
+  updateTrackSchema
+} from "@/lib/validation";
+import type { TrackKnowledge } from "@/lib/types";
 
-const required = (formData: FormData, name: string) => {
-  const value = String(formData.get(name) ?? "").trim();
-  if (!value) throw new Error(`${name} is required`);
-  return value;
-};
-
-const optional = (formData: FormData, name: string) => {
-  const value = String(formData.get(name) ?? "").trim();
-  return value || null;
-};
-
-export async function addTrack(formData: FormData) {
-  const title = required(formData, "title");
-  const artist = required(formData, "artist");
-  const rating = Number(formData.get("rating")) as Rating;
-  const yearValue = optional(formData, "year");
-
-  await db.track.upsert({
-    where: { title_artist: { title, artist } },
-    create: {
-      title,
-      artist,
-      album: optional(formData, "album"),
-      year: yearValue ? Number(yearValue) : null,
-      notes: optional(formData, "notes") ?? "",
-      source: optional(formData, "source") ?? "manual",
-      tags: JSON.stringify(normalizeTags(formData.get("tags"))),
-      rating
-    },
-    update: {
-      album: optional(formData, "album"),
-      year: yearValue ? Number(yearValue) : null,
-      notes: optional(formData, "notes") ?? "",
-      source: optional(formData, "source") ?? "manual",
-      tags: JSON.stringify(normalizeTags(formData.get("tags"))),
-      rating
-    }
-  });
-
+const revalidateAll = () => {
   revalidatePath("/");
   revalidatePath("/tracks");
   revalidatePath("/candidates");
+};
+
+const toKnowledge = (tracks: {
+  title: string;
+  artist: string;
+  rating: number;
+  notes: string;
+  tags: string;
+}[]): TrackKnowledge[] =>
+  tracks.map((track) => ({
+    title: track.title,
+    artist: track.artist,
+    rating: track.rating,
+    notes: track.notes,
+    tags: parseStringList(track.tags)
+  }));
+
+export async function addTrack(formData: FormData) {
+  const data = parseForm(trackSchema, formData);
+  const fields = {
+    album: data.album ?? null,
+    year: data.year ?? null,
+    notes: data.notes,
+    source: data.source || "manual",
+    tags: JSON.stringify(normalizeTags(formData.get("tags"))),
+    rating: data.rating
+  };
+
+  await db.track.upsert({
+    where: { title_artist: { title: data.title, artist: data.artist } },
+    create: { title: data.title, artist: data.artist, ...fields },
+    update: fields
+  });
+
+  revalidateAll();
 }
 
 export async function updateTrack(formData: FormData) {
-  const id = required(formData, "id");
-  const rating = Number(formData.get("rating")) as Rating;
-  const yearValue = optional(formData, "year");
-
+  const data = parseForm(updateTrackSchema, formData);
   await db.track.update({
-    where: { id },
+    where: { id: data.id },
     data: {
-      title: required(formData, "title"),
-      artist: required(formData, "artist"),
-      album: optional(formData, "album"),
-      year: yearValue ? Number(yearValue) : null,
-      notes: optional(formData, "notes") ?? "",
-      source: optional(formData, "source") ?? "manual",
+      title: data.title,
+      artist: data.artist,
+      album: data.album ?? null,
+      year: data.year ?? null,
+      notes: data.notes,
+      source: data.source || "manual",
       tags: JSON.stringify(normalizeTags(formData.get("tags"))),
-      rating
+      rating: data.rating
     }
   });
-  revalidatePath("/");
-  revalidatePath("/tracks");
-  revalidatePath("/candidates");
+  revalidateAll();
 }
 
 export async function rateTrack(formData: FormData) {
-  const id = required(formData, "id");
-  const rating = Number(required(formData, "rating")) as Rating;
-  await db.track.update({ where: { id }, data: { rating } });
-  revalidatePath("/");
-  revalidatePath("/tracks");
-  revalidatePath("/candidates");
+  const data = parseForm(rateSchema, formData);
+  await db.track.update({
+    where: { id: data.id },
+    data: { rating: data.rating }
+  });
+  revalidateAll();
 }
 
 export async function addCandidate(formData: FormData) {
-  const title = required(formData, "title");
-  const artist = required(formData, "artist");
-  const whySuggested = optional(formData, "whySuggested") ?? "";
+  const data = parseForm(candidateSchema, formData);
   const tags = normalizeTags(formData.get("tags"));
   const tracks = await db.track.findMany();
-  const result = scoreCandidate(
-    { title, artist, whySuggested, tags },
-    tracks.map((track) => ({
-      title: track.title,
-      artist: track.artist,
-      rating: track.rating,
-      notes: track.notes,
-      tags: JSON.parse(track.tags)
-    }))
+  const result = scoreWithModel(
+    {
+      title: data.title,
+      artist: data.artist,
+      whySuggested: data.whySuggested,
+      tags
+    },
+    buildModel(toKnowledge(tracks))
   );
 
+  const fields = {
+    sourceLink: data.sourceLink ?? null,
+    whySuggested: data.whySuggested,
+    tags: JSON.stringify(tags),
+    predictedScore: result.score,
+    confidence: result.confidence,
+    explanation: JSON.stringify(result.explanations),
+    risks: JSON.stringify(result.risks),
+    suggestedAction: result.suggestedAction
+  };
+
   await db.candidate.upsert({
-    where: { title_artist: { title, artist } },
-    create: {
-      title,
-      artist,
-      sourceLink: optional(formData, "sourceLink"),
-      whySuggested,
-      tags: JSON.stringify(tags),
-      predictedScore: result.score,
-      confidence: result.confidence,
-      explanation: JSON.stringify(result.explanations),
-      risks: JSON.stringify(result.risks),
-      suggestedAction: result.suggestedAction
-    },
-    update: {
-      sourceLink: optional(formData, "sourceLink"),
-      whySuggested,
-      tags: JSON.stringify(tags),
-      predictedScore: result.score,
-      confidence: result.confidence,
-      explanation: JSON.stringify(result.explanations),
-      risks: JSON.stringify(result.risks),
-      suggestedAction: result.suggestedAction
-    }
+    where: { title_artist: { title: data.title, artist: data.artist } },
+    create: { title: data.title, artist: data.artist, ...fields },
+    update: fields
   });
 
   revalidatePath("/");
@@ -131,18 +121,17 @@ export async function addCandidate(formData: FormData) {
 }
 
 export async function reviewCandidate(formData: FormData) {
-  const id = required(formData, "id");
-  const status = required(formData, "status");
-  const ratingValue = optional(formData, "finalRating");
-  const finalRating = ratingValue ? Number(ratingValue) : null;
-  const notesAfterListening =
-    optional(formData, "notesAfterListening") ?? "";
+  const data = parseForm(reviewSchema, formData);
   const candidate = await db.candidate.update({
-    where: { id },
-    data: { status, finalRating, notesAfterListening }
+    where: { id: data.id },
+    data: {
+      status: data.status,
+      finalRating: data.finalRating,
+      notesAfterListening: data.notesAfterListening
+    }
   });
 
-  if (status === "promoted" && finalRating) {
+  if (data.status === "promoted" && data.finalRating) {
     await db.track.upsert({
       where: {
         title_artist: { title: candidate.title, artist: candidate.artist }
@@ -150,22 +139,20 @@ export async function reviewCandidate(formData: FormData) {
       create: {
         title: candidate.title,
         artist: candidate.artist,
-        notes: notesAfterListening,
+        notes: data.notesAfterListening,
         source: "candidate",
         tags: candidate.tags,
-        rating: finalRating
+        rating: data.finalRating
       },
       update: {
-        notes: notesAfterListening,
+        notes: data.notesAfterListening,
         tags: candidate.tags,
-        rating: finalRating
+        rating: data.finalRating
       }
     });
   }
 
-  revalidatePath("/");
-  revalidatePath("/tracks");
-  revalidatePath("/candidates");
+  revalidateAll();
 }
 
 export async function rescoreAllCandidates() {
@@ -173,25 +160,20 @@ export async function rescoreAllCandidates() {
     db.track.findMany(),
     db.candidate.findMany()
   ]);
-  const knowledge = tracks.map((track) => ({
-    title: track.title,
-    artist: track.artist,
-    rating: track.rating,
-    notes: track.notes,
-    tags: JSON.parse(track.tags) as string[]
-  }));
+  // Build the learned model once, then score every candidate against it.
+  const model = buildModel(toKnowledge(tracks));
 
   await Promise.all(
     candidates.map((candidate) => {
-      const result = scoreCandidate(
+      const result = scoreWithModel(
         {
           title: candidate.title,
           artist: candidate.artist,
           whySuggested: candidate.whySuggested,
           notes: candidate.notesAfterListening,
-          tags: JSON.parse(candidate.tags)
+          tags: parseStringList(candidate.tags)
         },
-        knowledge
+        model
       );
       return db.candidate.update({
         where: { id: candidate.id },
@@ -207,4 +189,11 @@ export async function rescoreAllCandidates() {
   );
   revalidatePath("/");
   revalidatePath("/candidates");
+}
+
+export async function runDiscovery() {
+  await discoverCandidates();
+  revalidatePath("/");
+  revalidatePath("/candidates");
+  redirect("/candidates");
 }

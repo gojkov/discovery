@@ -10,13 +10,19 @@ A local-first, rejection-aware app that optimizes for craving and replay probabi
 - One-tap grading and re-rating for every saved track
 - Inline editing for track metadata, notes, tags, source, and rating
 - Seeded replay monsters, true 8s, and hard negatives
-- Transparent 0–100 candidate scoring
+- Transparent 0–100 candidate scoring that **learns from your real outcomes**
+  (per-artist hit-rate priors + empirical phrase weights), with the static
+  rules as a cold-start prior
+- **Active discovery** — seed from your proven 10s, pull similar tracks from
+  Last.fm, dedupe, score, and queue the best (`/discover`)
+- Optional Spotify play-link enrichment on discovered candidates
 - Mixed-artist warnings for artists such as Landon Sears and JMSN
 - Candidate listening/review funnel
 - Promotion of reviewed candidates into the known-track library
 - Live taste-profile learnings
-- JSON and CSV exports
+- JSON and RFC-4180 CSV exports
 - Local SQLite storage
+- Validated inputs (zod), accessible refined-dark UI with real typography
 
 ## Setup
 
@@ -63,11 +69,29 @@ Run the unit tests with:
 npm test
 ```
 
-## Waiting for Spotify Export
+## Discovery integration
 
-The app is useful now with manual seeds and candidates; no Spotify connection or data export is needed.
+Discovery is live once you add a free Last.fm key. Copy `.env.example` to
+`.env` and set:
 
-The placeholder route at `/import/spotify-csv` and parser boundary in `lib/spotify-csv.ts` document the future mapping for:
+- `LASTFM_API_KEY` — required for `/discover` (create at
+  [last.fm/api](https://www.last.fm/api/account/create), no OAuth)
+- `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` — optional, attaches Spotify
+  play links to finds (create at
+  [developer.spotify.com](https://developer.spotify.com/dashboard))
+
+Without keys the app is still fully usable with manual seeds and candidates;
+`/discover` shows a setup card instead of failing.
+
+> Note: Spotify deprecated Audio Features, Recommendations, and Related Artists
+> for newly-created apps (Nov 2024), so similarity sourcing runs through Last.fm
+> and Spotify is used only for metadata/links.
+
+## Spotify CSV import
+
+The parser in `lib/spotify-csv.ts` is implemented and tested (quoted commas,
+BOM, embedded newlines, header aliases, dedupe, partial rows). It documents the
+mapping for:
 
 - Track URI
 - Track Name

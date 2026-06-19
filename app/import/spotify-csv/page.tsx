@@ -6,12 +6,12 @@ export default function SpotifyImportPage() {
     <div className="space-y-8">
       <div>
         <Eyebrow>Future adapter</Eyebrow>
-        <h1 className="text-4xl font-black tracking-[-0.04em]">
+        <h1 className="text-4xl font-medium tracking-tight text-fg">
           Spotify CSV import
         </h1>
-        <p className="mt-3 max-w-2xl text-cream/50">
-          This boundary is ready, but deliberately dormant until there is a
-          real export to validate against.
+        <p className="mt-3 max-w-2xl text-muted">
+          This boundary is ready, but deliberately dormant until there is a real
+          export to validate against.
         </p>
       </div>
       <div className="grid gap-6 md:grid-cols-3">
@@ -22,16 +22,18 @@ export default function SpotifyImportPage() {
         ].map(([Icon, title, copy]) => (
           <Card key={String(title)}>
             <Icon className="text-cyan" />
-            <h2 className="mt-6 text-lg font-black">{String(title)}</h2>
-            <p className="mt-2 text-sm leading-6 text-cream/45">{String(copy)}</p>
+            <h2 className="mt-6 text-lg font-semibold text-fg">
+              {String(title)}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted">{String(copy)}</p>
           </Card>
         ))}
       </div>
       <Card className="border-dashed !bg-transparent text-center">
-        <span className="inline-flex rounded-full border border-pink/20 bg-pink/10 px-3 py-1 text-xs font-black uppercase tracking-widest text-pink">
+        <span className="inline-flex rounded-full border border-pink/25 bg-pink/10 px-3 py-1 font-mono text-xs font-medium uppercase tracking-eyebrow text-pink">
           Waiting for Spotify Export
         </span>
-        <p className="mx-auto mt-4 max-w-xl leading-7 text-cream/50">
+        <p className="mx-auto mt-4 max-w-xl leading-7 text-muted">
           Use the engine now with manual seeds and candidates. Once the CSV
           arrives, the adapter can enrich song-level evidence without replacing
           your actual listening verdicts.

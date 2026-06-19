@@ -3,26 +3,18 @@ import {
   positiveTasteRules,
   type TasteRule
 } from "@/taste-rules";
-import { parseStringList, type TrackKnowledge } from "@/lib/types";
+import type { TrackKnowledge } from "@/lib/types";
+import { matchesRule, normalize, parseTags } from "@/lib/scoring/text";
 
 type ProfileTrack = Omit<TrackKnowledge, "tags"> & {
   tags?: string[] | string;
 };
 
-function normalizedTags(track: ProfileTrack) {
-  return Array.isArray(track.tags) ? track.tags : parseStringList(track.tags);
-}
-
 function ruleCount(tracks: ProfileTrack[], rule: TasteRule, ratings: number[]) {
-  const phrases = [rule.phrase, ...(rule.aliases ?? [])].map((p) =>
-    p.toLowerCase()
-  );
   return tracks.filter((track) => {
     if (!ratings.includes(track.rating)) return false;
-    const text = [track.notes ?? "", ...normalizedTags(track)]
-      .join(" ")
-      .toLowerCase();
-    return phrases.some((phrase) => text.includes(phrase));
+    const text = normalize([track.notes ?? "", ...parseTags(track.tags)].join(" "));
+    return matchesRule(text, rule);
   }).length;
 }
 

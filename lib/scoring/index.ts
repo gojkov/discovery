@@ -1,47 +1,22 @@
 import {
   knownArtistSignals,
   negativeTasteRules,
-  positiveTasteRules,
-  type TasteRule
+  positiveTasteRules
 } from "@/taste-rules";
 import type {
   CandidateForScoring,
   ScoreResult,
   TrackKnowledge
 } from "@/lib/types";
+import { artistParts, matchesRule, normalize } from "./text";
+import {
+  artistRecord,
+  buildModel,
+  type LearnedModel
+} from "./learn";
 
-const normalize = (value: string) =>
-  value.toLowerCase().replace(/[&,+/]/g, " ").replace(/\s+/g, " ").trim();
-
-const artistParts = (artist: string) => {
-  const whole = normalize(artist);
-  return Array.from(
-    new Set([
-      whole,
-      ...artist
-        .split(/&|,|\/|\band\b|\bfeat\.?\b|\bx\b/i)
-        .map(normalize)
-        .filter(Boolean)
-    ])
-  );
-};
-
-function matchesRule(text: string, rule: TasteRule) {
-  return [rule.phrase, ...(rule.aliases ?? [])].some((phrase) =>
-    text.includes(normalize(phrase))
-  );
-}
-
-export function scoreCandidate(
-  candidate: CandidateForScoring,
-  tracks: TrackKnowledge[]
-): ScoreResult {
-  let score = 48;
-  let evidence = 0;
-  const explanations: string[] = [];
-  const risks: string[] = [];
-  const parts = artistParts(candidate.artist);
-  const text = normalize(
+function candidateText(candidate: CandidateForScoring): string {
+  return normalize(
     [
       candidate.title,
       candidate.artist,
@@ -52,75 +27,113 @@ export function scoreCandidate(
       .filter(Boolean)
       .join(" ")
   );
+}
 
-  const artistHistory = tracks.filter((track) =>
-    artistParts(track.artist).some((part) => parts.includes(part))
-  );
-  const loved = artistHistory.filter((track) => track.rating === 10);
-  const liked = artistHistory.filter((track) => track.rating === 8);
-  const rejected = artistHistory.filter((track) => track.rating === 1);
+/**
+ * Score a candidate against a learned taste model.
+ *
+ * The static rules in `taste-rules.ts` act as a cold-start prior; once the
+ * library contains rated tracks, per-artist hit-rates and empirical phrase
+ * associations adjust the score so it self-corrects toward what actually
+ * created craving for this listener.
+ */
+export function scoreWithModel(
+  candidate: CandidateForScoring,
+  model: LearnedModel
+): ScoreResult {
+  let score = 48;
+  let evidence = 0;
+  const explanations: string[] = [];
+  const risks: string[] = [];
+  const parts = artistParts(candidate.artist);
+  const text = candidateText(candidate);
 
-  if (loved.length) {
-    const bonus = Math.min(14, loved.length * 4);
+  // ---- Artist signal, learned from real outcomes ----
+  const record = artistRecord(model, candidate.artist);
+  const { tens: loved, eights: liked, ones: rejected } = record;
+  const decided = loved + rejected;
+  const hitRate = decided > 0 ? loved / decided : null;
+
+  if (loved > 0) {
+    // Base reward scales with proven 10s; amplified when the artist's
+    // decided hit-rate is high, dampened when it is shaky.
+    const base = Math.min(14, loved * 4);
+    const bonus = Math.round(base * (0.6 + 0.4 * (hitRate ?? 1)));
     score += bonus;
-    evidence += loved.length;
+    evidence += loved;
     explanations.push(
-      `${loved.length} known 10/10 ${loved.length === 1 ? "track" : "tracks"} from this artist (+${bonus}).`
+      `${loved} known 10/10 ${loved === 1 ? "track" : "tracks"} from this artist (+${bonus}).`
     );
   }
 
-  if (liked.length) {
-    score += Math.min(4, liked.length * 2);
-    evidence += liked.length;
+  if (liked > 0) {
+    score += Math.min(4, liked * 2);
+    evidence += liked;
     explanations.push("This artist has produced at least one solid 8/10.");
   }
 
-  if (rejected.length) {
-    const penalty = Math.min(13, rejected.length * 7);
+  if (rejected > 0) {
+    const penalty = Math.min(13, rejected * 7);
     score -= penalty;
-    evidence += rejected.length;
+    evidence += rejected;
     risks.push(
-      `${rejected.length} known false ${rejected.length === 1 ? "positive" : "positives"} from this artist (-${penalty}).`
+      `${rejected} known false ${rejected === 1 ? "positive" : "positives"} from this artist (-${penalty}).`
     );
   }
 
+  // Explicit hand-authored priors (cold-start). Down-weighted once we have
+  // enough real outcomes for the artist to trust the learned signal instead.
   const explicitSignals = parts
     .map((part) => knownArtistSignals[part])
     .filter(Boolean);
   if (explicitSignals.length) {
     const best = explicitSignals.sort((a, b) => b.bonus - a.bonus)[0];
-    score += best.bonus;
+    const trust = decided >= 3 ? 0.5 : 1;
+    const bonus = Math.round(best.bonus * trust);
+    score += bonus;
     evidence += 2;
-    explanations.push(`${best.label} (+${best.bonus}).`);
+    explanations.push(`${best.label} (+${bonus}).`);
     if (best.caution) risks.push(best.caution);
   }
 
-  const mixed = loved.length > 0 && rejected.length > 0;
-  if (mixed) {
+  if (loved > 0 && rejected > 0) {
     score -= 4;
     risks.unshift(
       "Artist match is unreliable here. Requires song-level validation."
     );
+    if (hitRate !== null) {
+      explanations.push(
+        `Learned artist hit-rate is ${Math.round(hitRate * 100)}% across decided tracks.`
+      );
+    }
   }
 
+  // ---- Song-level phrase signal: static weight + learned association ----
   for (const rule of positiveTasteRules) {
-    if (matchesRule(text, rule)) {
-      score += rule.weight;
-      evidence += 1;
-      explanations.push(`Positive signal: ${rule.phrase} (+${rule.weight}).`);
-    }
+    if (!matchesRule(text, rule)) continue;
+    const assoc = model.phraseAssoc.get(rule.phrase) ?? 0;
+    const weight = rule.weight + Math.max(0, assoc);
+    score += weight;
+    evidence += 1;
+    explanations.push(
+      `Positive signal: ${rule.phrase} (+${weight})${assoc > 0 ? " — reinforced by your 10s" : ""}.`
+    );
   }
 
   for (const rule of negativeTasteRules) {
-    if (matchesRule(text, rule)) {
-      score += rule.weight;
-      evidence += 1;
-      risks.push(`Negative signal: ${rule.phrase} (${rule.weight}).`);
-    }
+    if (!matchesRule(text, rule)) continue;
+    const assoc = model.phraseAssoc.get(rule.phrase) ?? 0;
+    // assoc < 0 means the phrase co-occurred with skips → deepen the penalty.
+    const weight = rule.weight + Math.min(0, assoc);
+    score += weight;
+    evidence += 1;
+    risks.push(`Negative signal: ${rule.phrase} (${weight}).`);
   }
 
   if ((candidate.tags ?? []).length === 0 && !candidate.whySuggested?.trim()) {
-    risks.push("Little song-level evidence was provided, so this score is exploratory.");
+    risks.push(
+      "Little song-level evidence was provided, so this score is exploratory."
+    );
   }
 
   score = Math.max(0, Math.min(100, Math.round(score)));
@@ -136,8 +149,20 @@ export function scoreCandidate(
   else suggestedAction = "reject";
 
   if (!explanations.length) {
-    explanations.push("No strong match yet; the score stays near the neutral prior.");
+    explanations.push(
+      "No strong match yet; the score stays near the neutral prior."
+    );
   }
 
   return { score, confidence, explanations, risks, suggestedAction };
 }
+
+/** Convenience: build a model from history and score a single candidate. */
+export function scoreCandidate(
+  candidate: CandidateForScoring,
+  tracks: TrackKnowledge[]
+): ScoreResult {
+  return scoreWithModel(candidate, buildModel(tracks));
+}
+
+export { buildModel } from "./learn";

@@ -38,18 +38,7 @@ export type ScoreResult = {
     | "reject";
 };
 
-export function parseStringList(value: string | null | undefined): string[] {
-  if (!value) return [];
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.map(String) : [];
-  } catch {
-    return value
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-}
+export { parseTags as parseStringList } from "@/lib/scoring/text";
 
 export function normalizeTags(value: FormDataEntryValue | null): string[] {
   return String(value ?? "")

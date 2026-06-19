@@ -2,61 +2,106 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color: #f6f7fb;
-  background: #030305;
-  font-synthesis: none;
-  color-scheme: dark;
+@layer base {
+  :root {
+    color-scheme: dark;
+    --ring: #5cd6ff;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(
+        circle at 85% -10%,
+        rgba(255, 92, 192, 0.1),
+        transparent 32rem
+      ),
+      radial-gradient(
+        circle at -8% 28%,
+        rgba(92, 214, 255, 0.08),
+        transparent 36rem
+      ),
+      linear-gradient(180deg, #0b0b12 0%, #07070b 100%);
+    background-attachment: fixed;
+    color: #f5f5fa;
+    font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+    font-weight: 400;
+    font-size: 16px;
+    line-height: 1.6;
+    letter-spacing: -0.011em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Display face + tight tracking for headings; weight is set per-use,
+     not blanket-maxed, so hierarchy comes from size + weight together. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display), var(--font-sans), sans-serif;
+    letter-spacing: -0.02em;
+    line-height: 1.08;
+    text-wrap: balance;
+  }
+
+  ::selection {
+    background: #5cd6ff;
+    color: #07070b;
+  }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  select option {
+    background: #111119;
+    color: #f5f5fa;
+  }
+
+  details > summary {
+    list-style: none;
+  }
+
+  details > summary::-webkit-details-marker {
+    display: none;
+  }
 }
 
-* {
-  box-sizing: border-box;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
-body {
-  margin: 0;
-  background:
-    radial-gradient(circle at 82% -8%, rgba(255, 60, 172, 0.16), transparent 30rem),
-    radial-gradient(circle at -6% 34%, rgba(70, 232, 255, 0.12), transparent 34rem),
-    linear-gradient(180deg, #050508 0%, #020203 100%);
-  color: #f6f7fb;
-  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
-  min-height: 100vh;
-  -webkit-font-smoothing: antialiased;
-}
-
-::selection {
-  background: #46e8ff;
-  color: #030305;
-}
-
-button,
-a,
-input,
-select,
-textarea {
-  -webkit-tap-highlight-color: transparent;
-}
-
-button:focus-visible,
-a:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
-summary:focus-visible {
-  outline: 2px solid #46e8ff;
-  outline-offset: 3px;
-}
-
-select option {
-  background: #0d0d14;
-  color: #f6f7fb;
-}
-
-details > summary {
-  list-style: none;
-}
-
-details > summary::-webkit-details-marker {
-  display: none;
+/* Numeric data (scores, counts) reads best in the mono face with tabular
+   figures so columns and re-scores don't jitter. */
+.tabular {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }

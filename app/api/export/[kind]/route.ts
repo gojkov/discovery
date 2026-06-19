@@ -77,7 +77,9 @@ export async function GET(
         .map(csvCell)
         .join(",")
     );
-    return new NextResponse([headers.join(","), ...rows].join("\n"), {
+    // RFC 4180: CRLF row separators, every field quoted (header included).
+    const body = [headers.map(csvCell).join(","), ...rows].join("\r\n");
+    return new NextResponse(body, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition": 'attachment; filename="candidate-rankings.csv"'
