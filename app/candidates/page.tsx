@@ -39,12 +39,25 @@ export default async function CandidatesPage() {
   ]);
 
   // Backfill cover art for candidates that predate the stored image field,
-  // by resolving the Spotify track id out of their source link.
-  const missing = candidates
+  // by resolving the Spotify track id out of their source link, then cache
+  // it on the row so we never re-fetch it again.
+  const withoutImage = candidates
     .filter((c) => !c.image)
-    .map((c) => trackUriFromLink(c.sourceLink))
-    .filter((u): u is string => Boolean(u));
-  const fetched = await fetchTrackImages(missing);
+    .map((c) => ({ id: c.id, uri: trackUriFromLink(c.sourceLink) }))
+    .filter((c): c is { id: string; uri: string } => Boolean(c.uri));
+  const fetched = await fetchTrackImages(withoutImage.map((c) => c.uri));
+  if (fetched.size) {
+    await Promise.all(
+      withoutImage
+        .filter((c) => fetched.has(c.uri))
+        .map((c) =>
+          db.candidate.update({
+            where: { id: c.id },
+            data: { image: fetched.get(c.uri) }
+          })
+        )
+    );
+  }
   const coverFor = (c: (typeof candidates)[number]) =>
     c.image ?? fetched.get(trackUriFromLink(c.sourceLink) ?? "") ?? null;
 
@@ -113,7 +126,7 @@ export default async function CandidatesPage() {
             const risks = parseStringList(candidate.risks);
             return (
               <Card key={candidate.id}>
-                <div className="grid gap-6 lg:grid-cols-[5rem_1fr_13rem]">
+                <div className="grid gap-6 lg:grid-cols-[5rem_1fr]">
                   <div className="space-y-2">
                     <CoverArt
                       src={coverFor(candidate)}
@@ -184,8 +197,10 @@ export default async function CandidatesPage() {
                       </div>
                     </details>
                   </div>
-                  <form action={reviewCandidate} className="space-y-3">
-                    <input type="hidden" name="id" value={candidate.id} />
+                </div>
+                <form action={reviewCandidate} className="mt-5 space-y-4 border-t border-white/[0.07] pt-5">
+                  <input type="hidden" name="id" value={candidate.id} />
+                  <div className="grid gap-4 md:grid-cols-2">
                     <select
                       className={inputClass}
                       name="finalRating"
@@ -199,37 +214,39 @@ export default async function CandidatesPage() {
                       <option value="1">1 — skip</option>
                     </select>
                     <textarea
-                      className={`${inputClass} min-h-24`}
+                      className={inputClass}
                       name="notesAfterListening"
                       defaultValue={candidate.notesAfterListening}
                       placeholder="What landed or failed?"
                     />
-                    <ReasonChips
-                      reasons={reasons}
-                      name="outcomeReasonIds"
-                      selected={candidate.reasons
-                        .filter(({ phase }) => phase === "outcome")
-                        .map(({ reasonId }) => reasonId)}
-                      includeTrajectory
-                    />
+                  </div>
+                  <ReasonChips
+                    reasons={reasons}
+                    name="outcomeReasonIds"
+                    selected={candidate.reasons
+                      .filter(({ phase }) => phase === "outcome")
+                      .map(({ reasonId }) => reasonId)}
+                    includeTrajectory
+                  />
+                  <div className="flex gap-3">
                     <SubmitButton
                       pendingLabel="Saving…"
-                      className="w-full rounded-full bg-fg px-5 py-3 text-sm font-semibold text-ink hover:bg-cyan hover:shadow-glow"
+                      className="rounded-full bg-fg px-5 py-3 text-sm font-semibold text-ink hover:bg-cyan hover:shadow-glow"
                     >
-                      Save, close &amp; re-rank
+                      Save &amp; re-rank
                     </SubmitButton>
                     {candidate.sourceLink && (
                       <a
                         href={candidate.sourceLink}
                         target="_blank"
                         rel="noreferrer"
-                        className="block text-center text-xs font-medium text-cyan underline"
+                        className="rounded-full border border-white/10 px-5 py-3 text-sm font-medium text-cyan hover:border-cyan/50"
                       >
-                        Open source link
+                        Open source
                       </a>
                     )}
-                  </form>
-                </div>
+                  </div>
+                </form>
               </Card>
             );
           })}

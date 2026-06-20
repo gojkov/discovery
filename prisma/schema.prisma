@@ -36,6 +36,7 @@ model StreamStat {
   title         String
   artist        String
   album         String?
+  image         String? // cached Spotify cover art URL
   plays         Int       @default(0)
   completions   Int       @default(0) // reason_end = trackdone
   skips         Int       @default(0) // reason_end = fwdbtn or skipped

@@ -14,6 +14,7 @@ type Row = {
   spotifyUri: string;
   title: string;
   artist: string;
+  image: string | null;
   plays: number;
   completions: number;
   skips: number;
@@ -56,10 +57,24 @@ export default async function ReviewPage() {
     rows.filter((r) => !manual.has(`${normalize(r.title)}|${normalize(r.artist)}`));
   const loveRows = fresh(loves);
   const rejectRows = fresh(rejects);
+  const allRows = [...loveRows, ...rejectRows];
 
-  // One batched Spotify call for the cover art of everything on screen.
-  const images = await fetchTrackImages(
-    [...loveRows, ...rejectRows].map((r) => r.spotifyUri)
+  // Only fetch cover art Spotify we haven't already cached on the row.
+  const missing = allRows
+    .filter((r) => !r.image)
+    .map((r) => r.spotifyUri);
+  const fetched = await fetchTrackImages(missing);
+  if (fetched.size) {
+    await Promise.all(
+      [...fetched.entries()].map(([spotifyUri, image]) =>
+        db.streamStat.update({ where: { spotifyUri }, data: { image } })
+      )
+    );
+  }
+  const images = new Map(
+    allRows
+      .map((r) => [r.spotifyUri, r.image ?? fetched.get(r.spotifyUri)] as const)
+      .filter((entry): entry is [string, string] => Boolean(entry[1]))
   );
 
   return (
